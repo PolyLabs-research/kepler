@@ -1,0 +1,2748 @@
+{
+  "n": 180,
+  "top1_accuracy": 0.6722222222222223,
+  "top2_coverage": 0.9888888888888889,
+  "ambiguous_rate": 0.4888888888888889,
+  "details": [
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.12352070798903908,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": false
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.08408230304935171,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.0,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.2371125379778021,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.12352070798903908,
+      "ambiguous": false,
+      "ok1": false,
+      "ok2": false
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.05283774331436111,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "logistic",
+      "best": "polynomial",
+      "top2": [
+        "polynomial",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental"
+      ],
+      "margin": 0.028091452222143598,
+      "ambiguous": true,
+      "ok1": false,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "transcendental",
+      "top2": [
+        "transcendental",
+        "polynomial"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.01636747759381746,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "exp",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "transcendental"
+      ],
+      "expected": [
+        "transcendental",
+        "linear_ode"
+      ],
+      "margin": 0.047307501217422915,
+      "ambiguous": true,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ode",
+      "best": "linear_ode",
+      "top2": [
+        "linear_ode",
+        "ar"
+      ],
+      "expected": [
+        "linear_ode"
+      ],
+      "margin": 0.2070093839321113,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    },
+    {
+      "scenario": "ar",
+      "best": "ar",
+      "top2": [
+        "ar",
+        "linear_ode"
+      ],
+      "expected": [
+        "ar"
+      ],
+      "margin": 0.18961478643371268,
+      "ambiguous": false,
+      "ok1": true,
+      "ok2": true
+    }
+  ]
+}

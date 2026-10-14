@@ -1,0 +1,14 @@
+# Virtual environments
+.venv/
+.venv-linux/
+venv/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Generated training artifacts (too large for GitHub; regenerate with train.py / compile_data.py)
+*.pt
+*.bin
+galileo_minimal/backup_*/
