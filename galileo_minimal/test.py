@@ -227,89 +227,9 @@ def cleanup_prediction(pred_str: str) -> str:
 # PHASE 4: ODE-aware comparison for linear_ode
 # =============================================================================
 
-def extract_ode_coefficients(tokens: List[str]) -> Optional[Dict[str, float]]:
-    """
-    Parse ODE coefficients from token sequence.
-    
-    First-order: DX_DT EQ <a> MUL X
-    Second-order: D2X_DT2 ADD <C1> MUL DX_DT ADD <C2> MUL X EQ INT_0
-    
-    Returns dict with 'order', 'a' (first-order) or 'C1', 'C2' (second-order)
-    """
-    try:
-        # Check for second-order
-        if "D2X_DT2" in tokens:
-            # Find coefficient positions
-            eq_idx = tokens.index("EQ")
-            d2_idx = tokens.index("D2X_DT2")
-            
-            # Extract C1 (coefficient of DX_DT)
-            first_add = tokens.index("ADD", d2_idx + 1)
-            first_mul = tokens.index("MUL", first_add + 1)
-            C1_tokens = tokens[first_add + 1: first_mul]
-            C1 = _parse_coefficient_tokens(C1_tokens)
-            
-            # Extract C2 (coefficient of X)
-            second_add = tokens.index("ADD", first_mul + 1)
-            second_mul = tokens.index("MUL", second_add + 1)
-            C2_tokens = tokens[second_add + 1: second_mul]
-            C2 = _parse_coefficient_tokens(C2_tokens)
-            
-            return {"order": 2, "C1": C1, "C2": C2}
-            
-        # Check for first-order
-        elif "DX_DT" in tokens and "D2X_DT2" not in tokens:
-            eq_idx = tokens.index("EQ")
-            mul_idx = tokens.index("MUL", eq_idx + 1)
-            a_tokens = tokens[eq_idx + 1: mul_idx]
-            a = _parse_coefficient_tokens(a_tokens)
-            
-            return {"order": 1, "a": a}
-            
-    except Exception as e:
-        return None
-    
-    return None
-
-
-def _parse_coefficient_tokens(tokens: List[str]) -> Optional[float]:
-    """Parse a coefficient from token sequence."""
-    snapped_map = {
-        "HALF": 0.5, "THIRD": 1/3, "QUARTER": 0.25,
-        "NEG_1": -1.0, "NEG_2": -2.0,
-        "INT_0": 0.0, "INT_1": 1.0, "INT_2": 2.0, "INT_3": 3.0,
-        "INT_4": 4.0, "INT_5": 5.0, "INT_6": 6.0, "INT_7": 7.0,
-        "INT_8": 8.0, "INT_9": 9.0, "INT_10": 10.0,
-        "PI": float(sympy.pi), "E": float(sympy.E),
-    }
-    
-    if len(tokens) == 1 and tokens[0] in snapped_map:
-        return float(snapped_map[tokens[0]])
-    
-    if not tokens or tokens[0] != "CONST":
-        return None
-    
-    i = 1
-    sign = 1.0
-    if i < len(tokens) and tokens[i] == "NEG":
-        sign = -1.0
-        i += 1
-    
-    digits: List[str] = []
-    while i < len(tokens):
-        t = tokens[i]
-        if t == "POINT":
-            digits.append(".")
-        elif t.isdigit():
-            digits.append(t)
-        else:
-            return None
-        i += 1
-    
-    s = "".join(digits)
-    if s in ("", "."):
-        return None
-    return sign * float(s)
+# Shared with the tool layer so both paths parse ODE tokens identically.
+from expression import parse_ode_tokens as extract_ode_coefficients  # noqa: E402
+from expression import parse_coefficient as _parse_coefficient_tokens  # noqa: E402
 
 
 def compare_linear_ode(truth_tokens: List[str], pred_tokens: List[str], tolerance: float = 0.25) -> Dict[str, Any]:
