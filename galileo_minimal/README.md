@@ -169,6 +169,7 @@ galileo_minimal/
 ├── normalize.py      # Real data <-> training frame
 ├── refine.py         # Least-squares constant refitting
 ├── galileo_tools.py  # LLM tool interface (synthesize / discover / verify)
+├── mcp_server.py     # The same tools over MCP for agents
 ├── train.py          # Training script
 ├── test.py           # Evaluation script
 └── checkpoints/      # Created during training
@@ -304,6 +305,18 @@ result["candidates"]   # [{'model': 'transcendental', 'tier': 2, 'bic': ..., 'de
 If `x` is omitted, the sample index 0..n-1 is used for both discovery and verification and the result says so in `x_assumed`.
 
 Limitations: the `physics_laws` path through this interface sees only the output column and is flagged as unreliable in the result. `pytest` runs the unit tests; `test_generalization*.py` need trained checkpoints and are excluded in `pytest.ini`.
+
+## Using Kepler From an Agent (MCP)
+
+`mcp_server.py` exposes the tools over the Model Context Protocol, so Claude Code, Claude Desktop or any MCP client can run the synthesise, discover, verify loop.
+
+```bash
+pip install -r requirements-mcp.txt          # adds the mcp package to the venv
+python mcp_server.py --list-tools            # sanity check
+claude mcp add kepler -- /abs/path/galileo_minimal/.venv/bin/python /abs/path/galileo_minimal/mcp_server.py
+```
+
+Tools: `list_models`, `classify_data`, `discover_equation`, `verify_equation`, `synthesize_data`. They take and return the same dictionaries as `GalileoTools`, with numpy types and non-finite floats made JSON-safe. The server reads `KEPLER_CHECKPOINTS` (default `galileo_minimal/checkpoints`) and `KEPLER_DEFAULT_TIER` (default 2). It speaks stdio by default; `--transport streamable-http --port 8000` serves HTTP. The tool functions are plain Python and work without the `mcp` package, so they can be imported and tested directly.
 
 ## Phase 3 Prep (Before Training)
 
