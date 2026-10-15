@@ -5,6 +5,8 @@ Covers the three post-processing modules (expression, normalize, refine) and
 the discover_equation path of GalileoTools with a stubbed specialist, so the
 whole pipeline is exercised without torch or trained checkpoints.
 """
+import re
+
 import numpy as np
 import pytest
 import sympy
@@ -411,6 +413,48 @@ def test_verify_reports_undefined_points_and_bad_input(tools):
     assert "error" in mismatch
     unparseable = tools.verify_equation("nope(x", x=[1, 2], y=[1, 2])
     assert "error" in unparseable
+
+
+def test_discovery_resamples_uneven_x_for_the_model_only(tools, monkeypatch):
+    # Power-law template: the structure the transcendental specialist should
+    # propose for Kepler's third law once it sees an evenly spaced view.
+    _stub(tools, monkeypatch, "CONST 1 POINT 0 0 MUL X POW CONST 1 POINT 5 0")
+    seen = {}
+    original = tools._compute_features
+
+    def spy(y, x, model_name):
+        seen["x"], seen["y"] = np.asarray(x), np.asarray(y)
+        return original(y, x, model_name)
+
+    monkeypatch.setattr(tools, "_compute_features", spy)
+
+    # Eight log-spaced planets: the model sees 64 even points, refinement sees 8.
+    result = tools.discover_equation(y=PLANET_T, x=PLANET_A, model_hint="transcendental")
+    assert result.get("success"), result
+    assert result["resampling"] == {
+        "method": "pchip", "n_original": 8, "n_grid": 64, "reason": result["resampling"]["reason"]}
+    assert len(seen["x"]) == 64 and np.allclose(np.diff(seen["x"]), np.diff(seen["x"])[0])
+    assert np.all(np.isfinite(seen["y"]))
+    # Constants come from the original eight points, in original units.
+    check = tools.verify_equation(result["equation"], x=PLANET_A, y=PLANET_T)
+    assert check["rmse"] < 0.05 and result["fit"]["rmse"] < 0.05, (result["equation"], check)
+    # A power law with exponent ~1.5 and unit coefficient; the refit may add a
+    # negligible affine offset, so match the form rather than the exact string.
+    assert re.search(r"^1\.00\d*\*x\*\*1\.(49|50)\d*", result["equation"]), result["equation"]
+
+    # Unsorted input is sorted before the model sees it, then handled the same way.
+    order = [5, 0, 7, 2, 6, 1, 4, 3]
+    shuffled = tools.discover_equation(
+        y=[PLANET_T[i] for i in order], x=[PLANET_A[i] for i in order], model_hint="transcendental")
+    assert shuffled["resampling"]["n_grid"] == 64 and np.all(np.diff(seen["x"]) > 0)
+    assert shuffled["equation"] == result["equation"]
+
+    # Evenly spaced x is passed through untouched, and the index path never resamples.
+    x = np.linspace(1, 20, 41)
+    even = tools.discover_equation(y=(x**1.5).tolist(), x=x.tolist(), model_hint="transcendental")
+    assert even["resampling"] is None and len(seen["x"]) == 41
+    indexed = tools.discover_equation(y=(x**1.5).tolist(), model_hint="transcendental")
+    assert indexed["resampling"] is None and indexed["x_assumed"]
 
 
 def test_ranked_discovery_picks_the_right_family(tools, monkeypatch):
