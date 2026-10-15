@@ -36,6 +36,7 @@ The TOOL_SCHEMAS are OpenAI-compatible and work with:
 import json
 import numpy as np
 from pathlib import Path
+from scipy.interpolate import PchipInterpolator
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Local imports
@@ -600,6 +601,12 @@ class GalileoTools:
     # Occam window: a richer structure must beat a simpler one by more than this
     # many BIC points to be preferred (Kass & Raftery: 2-6 is "positive", >6 "strong").
     OCCAM_WINDOW = 6.0
+    # Resampling for the model's eyes: the specialists were trained on evenly
+    # spaced samples, so unevenly spaced x is resampled onto an even grid of at
+    # least this many points with a shape-preserving interpolant before feature
+    # extraction. Refinement always uses the original points.
+    RESAMPLE_MIN_POINTS = 64
+    RESAMPLE_SPACING_TOL = 1e-3
 
     def discover_best(
         self,
@@ -777,6 +784,50 @@ class GalileoTools:
             return np.arange(n, dtype=np.float64), "index"
         return np.asarray(x, dtype=np.float64), None
 
+    def _resample_for_model(
+        self,
+        x: np.ndarray,
+        y: np.ndarray,
+        x_assumed: Optional[str],
+        domain: str,
+    ) -> Tuple[np.ndarray, np.ndarray, Optional[Dict[str, Any]]]:
+        """
+        Return the (x, y) the specialist should look at, and a note if it differs.
+
+        The generators sample every family on an evenly spaced grid, so a
+        power law sampled at log-spaced x looks to the model like a logarithm
+        or an exponential. When x is unevenly spaced the data is sorted and
+        resampled onto an even grid of max(n, RESAMPLE_MIN_POINTS) points with a
+        shape-preserving (PCHIP) interpolant, which assumes nothing about the
+        family and introduces no kinks. Only the prediction uses the resampled
+        series; constants are refitted on the original points.
+
+        Not applied when x is the sample index, for time-series and
+        multivariate models (their features are index based), with fewer than
+        three points, or when x has repeated values.
+        """
+        n = len(y)
+        if x_assumed or domain in ("timeseries", "multivariate") or n < 3:
+            return x, y, None
+        order = np.argsort(x, kind="stable")
+        xs, ys = x[order], y[order]
+        gaps = np.diff(xs)
+        if np.any(gaps <= 0):
+            return xs, ys, None
+        if (gaps.max() - gaps.min()) <= self.RESAMPLE_SPACING_TOL * gaps.mean():
+            return xs, ys, None
+        n_grid = max(n, self.RESAMPLE_MIN_POINTS)
+        xg = np.linspace(xs[0], xs[-1], n_grid)
+        yg = PchipInterpolator(xs, ys)(xg)
+        info = {
+            "method": "pchip",
+            "n_original": int(n),
+            "n_grid": int(n_grid),
+            "reason": "x is not evenly spaced; the specialists were trained on evenly spaced samples, "
+                      "so the model predicted from a resampled view and the constants were refitted on the original points",
+        }
+        return xg, yg, info
+
     def _predict_tokens(self, model: Any, vocab: Any, features: np.ndarray) -> List[str]:
         """Greedy-decode one feature vector into token strings."""
         if torch is None:
@@ -804,7 +855,10 @@ class GalileoTools:
         norm = fit_normalization(x_arr, y_arr, model_name, domain, enabled=normalize, x_assumed=x_assumed)
         x_n, y_n = norm.transform(x_arr, y_arr)
 
-        features = self._compute_features(y_n, x_n, model_name)
+        # The model predicts from an evenly spaced view of the data; refinement
+        # below fits the predicted structure to the original points (x_n, y_n).
+        x_m, y_m, resampling = self._resample_for_model(x_n, y_n, x_assumed, domain)
+        features = self._compute_features(y_m, x_m, model_name)
         pred_tokens = self._predict_tokens(model, vocab, features)
 
         result: Dict[str, Any] = {
@@ -814,6 +868,7 @@ class GalileoTools:
             "tokens": pred_tokens,
             "model_equation": self._tokens_to_equation(pred_tokens, model_name),
             "normalization": norm.to_dict(),
+            "resampling": resampling,
         }
         if x_assumed:
             result["x_assumed"] = "sample index 0..n-1 (no x provided)"
