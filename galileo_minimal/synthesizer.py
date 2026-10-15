@@ -202,14 +202,9 @@ class Synthesizer:
             if x_range[0] <= 0:
                 x_range = (0.1, x_range[1])
         
+        func = self._compile(equation, variable)
+
         try:
-            # Parse equation with sympy
-            var = Symbol(variable)
-            expr = sympify(equation)
-            
-            # Create numerical function
-            func = lambdify(var, expr, modules=["numpy"])
-            
             # Generate x values
             x = np.linspace(x_range[0], x_range[1], n_points)
             
@@ -227,7 +222,50 @@ class Synthesizer:
             return x.astype(np.float32), y.astype(np.float32)
             
         except Exception as e:
+            raise SynthesizerError(f"Failed to evaluate equation '{equation}': {e}")
+
+    def _compile(self, equation: str, variable: str = "x"):
+        """Parse an equation string into a numpy-callable of one variable."""
+        try:
+            expr = sympify(equation)
+            return lambdify(Symbol(variable), expr, modules=["numpy"])
+        except Exception as e:
             raise SynthesizerError(f"Failed to parse equation '{equation}': {e}")
+
+    def evaluate_at(
+        self,
+        equation: str,
+        x: Union[np.ndarray, List[float]],
+        variable: str = "x",
+    ) -> np.ndarray:
+        """
+        Evaluate an equation string at exactly the given x values.
+
+        Unlike from_equation, no grid is built and nothing is interpolated, so
+        the result is exact for irregularly spaced or unsorted x. Points where
+        the equation is undefined come back as nan or inf; the caller decides
+        what to do with them.
+
+        Args:
+            equation: Equation string in the given variable
+            x: Values to evaluate at
+            variable: Variable name in the equation (default "x")
+
+        Returns:
+            float64 array with the same shape as x
+        """
+        func = self._compile(equation, variable)
+        x = np.asarray(x, dtype=np.float64)
+        try:
+            with np.errstate(all="ignore"):
+                y = np.asarray(func(x))
+        except Exception as e:
+            raise SynthesizerError(f"Failed to evaluate equation '{equation}': {e}")
+        if np.iscomplexobj(y):
+            y = np.where(np.abs(y.imag) <= 1e-12 * np.maximum(1.0, np.abs(y.real)), y.real, np.nan)
+        if y.ndim == 0:
+            y = np.full(x.shape, float(y), dtype=np.float64)
+        return np.asarray(y, dtype=np.float64).reshape(x.shape)
     
     def from_description(
         self,

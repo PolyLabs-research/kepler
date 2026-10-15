@@ -302,7 +302,7 @@ result["fit"]          # {'rmse': 0.26, 'r2': 0.9998, 'n_constants': 3, 'ill_con
 result["candidates"]   # [{'model': 'transcendental', 'tier': 2, 'bic': ..., 'delta_bic': 0.0, ...}, ...]
 ```
 
-If `x` is omitted, the sample index 0..n-1 is used for both discovery and verification and the result says so in `x_assumed`.
+If `x` is omitted, the sample index 0..n-1 is used for both discovery and verification and the result says so in `x_assumed`. `verify_equation` evaluates the equation at exactly the x values you pass, so irregular spacing and unsorted x are fine; points where the equation is undefined are reported as an error rather than skipped.
 
 Limitations: the `physics_laws` path through this interface sees only the output column and is flagged as unreliable in the result. `pytest` runs the unit tests; `test_generalization*.py` need trained checkpoints and are excluded in `pytest.ini`.
 

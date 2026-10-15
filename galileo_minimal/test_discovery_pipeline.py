@@ -381,6 +381,38 @@ def test_verify_reports_r2(tools):
     assert poor["r2"] < 0.95 and poor["match"] is False
 
 
+# Kepler's third law on the NASA planetary fact sheet: eight log-spaced x values.
+PLANET_A = [0.387, 0.723, 1.0, 1.524, 5.203, 9.537, 19.19, 30.07]
+PLANET_T = [0.2408, 0.6152, 1.0, 1.8809, 11.862, 29.457, 84.02, 164.8]
+
+
+def test_verify_evaluates_at_the_given_x(tools):
+    # Direct evaluation: a^1.5 reproduces the periods to within 0.1 year.
+    # The old grid-and-interpolate path reported RMSE 0.48 and max error 0.96 here.
+    r = tools.verify_equation("x**1.5", x=PLANET_A, y=PLANET_T)
+    assert r["match"] and r["rmse"] < 0.05 and r["max_error"] < 0.1, r
+    assert r["r2"] > 0.99999
+
+    # Order of the points must not matter.
+    order = [5, 0, 7, 2, 6, 1, 4, 3]
+    shuffled = tools.verify_equation("x**1.5", x=[PLANET_A[i] for i in order], y=[PLANET_T[i] for i in order])
+    assert shuffled["rmse"] == pytest.approx(r["rmse"]) and shuffled["max_error"] == pytest.approx(r["max_error"])
+
+    # Constant equations and the omitted-x path still work.
+    const = tools.verify_equation("3", y=[3, 3, 3, 3])
+    assert const["match"] and const["rmse"] == pytest.approx(0.0)
+    assert tools.verify_equation("x**2", y=[0, 1, 4, 9])["rmse"] == pytest.approx(0.0)
+
+
+def test_verify_reports_undefined_points_and_bad_input(tools):
+    undefined = tools.verify_equation("log(x)", x=[0, 1, 2], y=[0, 0, 0.69])
+    assert "error" in undefined and "not finite" in undefined["error"] and "x=0" in undefined["error"]
+    mismatch = tools.verify_equation("x", x=[1, 2], y=[1, 2, 3])
+    assert "error" in mismatch
+    unparseable = tools.verify_equation("nope(x", x=[1, 2], y=[1, 2])
+    assert "error" in unparseable
+
+
 def test_ranked_discovery_picks_the_right_family(tools, monkeypatch):
     _stub(tools, monkeypatch, STUB_TOKENS, ALL_TIER1)
     rng = np.random.default_rng(3)
