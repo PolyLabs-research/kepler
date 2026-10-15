@@ -71,7 +71,16 @@ from expression import (
     tokens_to_sympy,
 )
 from normalize import fit_normalization
-from refine import r_squared, refine_ar, refine_expression, refine_ode, rmse as _rmse
+from refine import (
+    cancellation_ratio,
+    count_constants,
+    r_squared,
+    refine_ar,
+    refine_expression,
+    refine_ode,
+    rmse as _rmse,
+)
+import math
 
 # Running a specialist needs torch and a trained checkpoint.
 _DISCOVERY_AVAILABLE = False
@@ -154,7 +163,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "discover_equation",
-            "description": "Analyze numerical data and discover the underlying symbolic equation. The data is normalised into the model's frame, the constants of the predicted structure are refitted to the data, and the equation is returned in the original units together with RMSE and R^2.",
+            "description": "Analyze numerical data and discover the underlying symbolic equation. Without a model_hint or data_type every trained specialist is run and the refined fits are ranked (BIC over the residuals; ill-conditioned fits are excluded). The data is normalised into each model's frame, the constants of the predicted structure are refitted to the data, and the equation is returned in the original units together with RMSE, R^2 and the ranked candidates.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -190,6 +199,11 @@ TOOL_SCHEMAS = [
                     "refine": {
                         "type": "boolean",
                         "description": "Refit the constants of the predicted structure to the data by least squares. Default true."
+                    },
+                    "strategy": {
+                        "type": "string",
+                        "enum": ["rank", "route"],
+                        "description": "Only used when neither model_hint nor data_type is given. 'rank' (default) runs every available specialist and tier and returns the best fit with all candidates; 'route' lets the Overseer pick one model."
                     }
                 },
                 "required": ["y"]
@@ -200,7 +214,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "verify_equation",
-            "description": "Check if a proposed equation matches the given data. Returns match status and error metrics.",
+            "description": "Check if a proposed equation matches the given data. Returns match status, RMSE, max error, relative error and R^2.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -440,9 +454,14 @@ class GalileoTools:
         include_classification: bool = False,
         normalize: bool = True,
         refine: bool = True,
+        strategy: str = "rank",
     ) -> Dict[str, Any]:
         """
         Discover the symbolic equation underlying the data.
+
+        With neither model_hint nor data_type, strategy="rank" (default) runs
+        every available specialist and ranks the refined fits (see
+        discover_best); strategy="route" asks the Overseer for one model.
 
         Args:
             y: Output values (required)
@@ -468,6 +487,9 @@ class GalileoTools:
             if x_in is not None and len(x_in) != n:
                 return {"error": f"x has {len(x_in)} values but y has {n}"}
 
+            if model_hint is None and data_type is None and strategy == "rank":
+                return self.discover_best(y_arr, x_in, tier=tier, normalize=normalize, refine=refine)
+
             tier = tier or self.default_tier
 
             # Reset classification cache
@@ -486,6 +508,7 @@ class GalileoTools:
 
             result = self._discover_with_model(model_name, model, vocab, y_arr, x_in, tier, normalize, refine)
             result["auto_routed"] = data_type is None and model_hint is None and self._overseer is not None
+            result["strategy"] = "route" if result["auto_routed"] else "hint"
 
             if include_classification and self._last_classification is not None:
                 result["classification"] = {
@@ -535,7 +558,7 @@ class GalileoTools:
                     r = self._discover_with_model(model_name, model, vocab, y_arr, x_in, tier, normalize, refine)
                     fit = r.get("fit") or {}
                     r2 = fit.get("r2")
-                    fit_score = float(np.clip(r2, 0.0, 1.0)) if r2 is not None else 0.0
+                    fit_score = float(np.clip(r2, 0.0, 1.0)) if r2 is not None and not fit.get("ill_conditioned") else 0.0
                 except Exception as e:
                     r = {"model_used": model_name, "equation": f"Error: {e}", "tokens": []}
                     fit_score = 0.0
@@ -566,6 +589,171 @@ class GalileoTools:
 
         except Exception as e:
             return {"error": f"Route and discover failed: {str(e)}"}
+
+    # =========================================================================
+    # Run-all-and-rank
+    # =========================================================================
+
+    DETERMINISTIC_MODELS = ("polynomial", "transcendental", "linear_ode")
+    STOCHASTIC_MODELS = ("ar",)
+    MIN_DETERMINISTIC_R2 = 0.5
+    # Occam window: a richer structure must beat a simpler one by more than this
+    # many BIC points to be preferred (Kass & Raftery: 2-6 is "positive", >6 "strong").
+    OCCAM_WINDOW = 6.0
+
+    def discover_best(
+        self,
+        y: List[float],
+        x: Optional[List[float]] = None,
+        tier: Optional[int] = None,
+        normalize: bool = True,
+        refine: bool = True,
+        candidates: Optional[List[Tuple[str, int]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run every available specialist and return the best-ranked fit.
+
+        Deterministic families (polynomial, transcendental, linear_ode) at every
+        available tier are ranked by BIC on their residuals in original units,
+        with the number of fitted constants as the complexity term. Within an
+        Occam window of 6 BIC points of the best score the candidate with the
+        fewest constants wins, so a richer structure (an ODE whose solutions
+        include an offset exponential, say) has to fit clearly better than the
+        closed form to be preferred. Ill-conditioned fits are ineligible.
+
+        AR answers a different question (is this a stationary stochastic
+        process?) and its one-step residuals are not comparable to curve
+        residuals, so it is chosen only when no deterministic family reaches
+        R^2 >= 0.5 and the AR fit is stationary.
+
+        Args:
+            tier: restrict to one tier (default: every tier with a checkpoint)
+            candidates: explicit [(model, tier), ...] to run instead of all
+        """
+        try:
+            y_arr = np.asarray(y, dtype=np.float64).ravel()
+            n = len(y_arr)
+            if n == 0:
+                return {"error": "y is empty"}
+            x_in = None if x is None else np.asarray(x, dtype=np.float64).ravel()
+            if x_in is not None and len(x_in) != n:
+                return {"error": f"x has {len(x_in)} values but y has {n}"}
+
+            if candidates is None:
+                available = self.list_available_models()
+                candidates = [
+                    (m, t)
+                    for m in (*self.DETERMINISTIC_MODELS, *self.STOCHASTIC_MODELS)
+                    for t in available.get(m, [])
+                    if tier is None or t == tier
+                ]
+            if not candidates:
+                if not _DISCOVERY_AVAILABLE:
+                    return {"error": "Discovery requires torch and trained models. Install torch and train a model first."}
+                where = f" for tier {tier}" if tier else ""
+                return {"error": f"No trained specialists found{where} under {self.checkpoint_dir}"}
+
+            rows: List[Dict[str, Any]] = []
+            for model_name, t in candidates:
+                model, vocab = self._load_model(model_name, t)
+                if model is None:
+                    rows.append({"success": False, "model_used": model_name, "tier": t, "error": "no checkpoint"})
+                    continue
+                try:
+                    rows.append(self._discover_with_model(model_name, model, vocab, y_arr, x_in, t, normalize, refine))
+                except Exception as e:
+                    rows.append({"success": False, "model_used": model_name, "tier": t, "error": str(e)})
+
+            ranked, best, note = self._rank_candidates(rows, n)
+            if best is None:
+                return {"error": "No specialist produced a usable fit", "candidates": ranked}
+
+            result = dict(best)
+            result.update(success=True, strategy="rank", ranking_note=note, candidates=ranked)
+            return result
+
+        except Exception as e:
+            return {"error": f"Ranked discovery failed: {str(e)}"}
+
+    def _rank_candidates(self, rows: List[Dict[str, Any]], n: int):
+        """Score candidate results by BIC and apply the selection rule. Returns (entries, best_row, note)."""
+        ln_n = math.log(max(n, 2))
+        scored = []
+        for r in rows:
+            fit = r.get("fit") or {}
+            model = r.get("model_used")
+            track = "stochastic" if model in self.STOCHASTIC_MODELS else "deterministic"
+            entry: Dict[str, Any] = {
+                "model": model,
+                "tier": r.get("tier"),
+                "track": track,
+                "equation": r.get("equation"),
+                "r2": fit.get("r2"),
+                "rmse": fit.get("rmse"),
+                "n_constants": int(fit.get("n_constants") or fit.get("n_parameters") or 0),
+                "ill_conditioned": bool(fit.get("ill_conditioned", False)),
+                "bic": None,
+                "delta_bic": None,
+                "eligible": False,
+                "reason": "",
+            }
+            rmse_v = fit.get("rmse")
+            if not r.get("success"):
+                entry["reason"] = r.get("error") or r.get("postprocess_error") or "failed"
+            elif rmse_v is None or not np.isfinite(rmse_v):
+                entry["reason"] = r.get("postprocess_error") or "no fit"
+            else:
+                rss = max(n * float(rmse_v) ** 2, 1e-300)
+                entry["bic"] = float(n * math.log(rss / n) + entry["n_constants"] * ln_n)
+                if entry["ill_conditioned"]:
+                    entry["reason"] = "ill-conditioned fit (cancelling terms)"
+                elif track == "stochastic" and not fit.get("stationary", True):
+                    entry["reason"] = "non-stationary AR fit"
+                else:
+                    entry["eligible"] = True
+            scored.append((entry, r))
+
+        det = sorted(((e, r) for e, r in scored if e["track"] == "deterministic" and e["eligible"]), key=lambda er: er[0]["bic"])
+        sto = sorted(((e, r) for e, r in scored if e["track"] == "stochastic" and e["eligible"]), key=lambda er: er[0]["bic"])
+
+        best, note = None, ""
+        if det:
+            # Occam window: simplest candidate among those close to the best BIC.
+            floor = det[0][0]["bic"]
+            window = [er for er in det if er[0]["bic"] - floor <= self.OCCAM_WINDOW]
+            det = sorted(window, key=lambda er: (er[0]["n_constants"], er[0]["bic"])) + [er for er in det if er not in window]
+        if det and (det[0][0]["r2"] or 0.0) >= self.MIN_DETERMINISTIC_R2:
+            e = det[0][0]
+            best = det[0][1]
+            note = f"best deterministic fit by BIC: {e['model']} tier {e['tier']} (r2={e['r2']:.4f})"
+            if e["bic"] > floor:
+                note += f"; chosen over a richer structure within the {self.OCCAM_WINDOW:g}-point Occam window"
+        elif sto:
+            best = sto[0][1]
+            note = "no deterministic family reaches r2 >= 0.5; the series is consistent with a stationary AR process"
+            if det:
+                note += f" (best deterministic r2={det[0][0]['r2']:.4f})"
+        elif det:
+            e = det[0][0]
+            best = det[0][1]
+            note = f"low confidence: best deterministic fit {e['model']} tier {e['tier']} has r2={e['r2']:.4f}"
+        else:
+            fallback = sorted(((e, r) for e, r in scored if e["bic"] is not None), key=lambda er: er[0]["bic"])
+            if fallback:
+                best = fallback[0][1]
+                note = f"every fit was flagged ({fallback[0][0]['reason']}); reporting the least bad"
+
+        entries = [e for e, _ in scored]
+        for track in ("deterministic", "stochastic"):
+            bics = [e["bic"] for e in entries if e["track"] == track and e["bic"] is not None]
+            if bics:
+                floor = min(bics)
+                for e in entries:
+                    if e["track"] == track and e["bic"] is not None:
+                        e["delta_bic"] = float(e["bic"] - floor)
+        entries.sort(key=lambda e: (not e["eligible"], e["track"] != "deterministic",
+                                    e["bic"] if e["bic"] is not None else float("inf")))
+        return entries, best, note
 
     # =========================================================================
     # Shared discovery path: normalise -> predict -> interpret -> refine
@@ -626,6 +814,9 @@ class GalileoTools:
         if r2 is not None and domain in ("algebraic", "dynamical"):
             result["confidence"] = float(np.clip(r2, 0.0, 1.0))
             result["confidence_source"] = "fit_r2"
+            if fit.get("ill_conditioned"):
+                result["warning"] = ("the fit relies on large cancelling terms (see fit.cancellation_ratio); "
+                                     "its R^2 overstates how well this structure describes the data")
         else:
             # Stochastic (AR) and multivariate paths: R^2 is bounded by noise,
             # so fall back to the structural heuristic.
@@ -643,12 +834,16 @@ class GalileoTools:
             with np.errstate(all="ignore"):
                 pred = func(x_n)
             value = _rmse(pred, y_n)
+            ratio = cancellation_ratio(expr, x_n, y_n, _X)
             return {
                 "rmse_initial": None,
                 "rmse": float(value * y_scale) if np.isfinite(value) else None,
                 "r2": float(r_squared(pred, y_n)) if np.isfinite(value) else None,
                 "n_parameters": 0,
+                "n_constants": count_constants(expr),
                 "improved": False,
+                "ill_conditioned": bool(np.isfinite(ratio) and ratio > 10.0),
+                "cancellation_ratio": float(ratio) if np.isfinite(ratio) else None,
                 "message": "constants as predicted (refine=False)",
             }
         except Exception as exc:
@@ -674,7 +869,8 @@ class GalileoTools:
             if domain == "algebraic":
                 expr_n = tokens_to_sympy(tokens, model_name)
                 if refine:
-                    res = refine_expression(expr_n, x_n, y_n, affine_wrapper=True)
+                    res = refine_expression(expr_n, x_n, y_n, affine_wrapper=True,
+                                            bound=1e6 if norm.enabled else None)
                     expr_n = res.expression
                     fit = res.fit_dict()
                     for key in ("rmse", "rmse_initial"):
@@ -695,7 +891,10 @@ class GalileoTools:
                 if refine:
                     info = refine_ar(y_arr, phi)
                     out["refined"] = bool(info["improved"])
-                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "message")}
+                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "n_parameters", "n_constants",
+                                                           "stationary", "max_root_modulus", "ill_conditioned", "message")}
+                    if not info.get("stationary", True):
+                        out["warning"] = "the refitted AR coefficients are not stationary; the series is probably not an AR process"
                 out["ar"] = {"coefficients": info["coefficients"], "order": info["order"], "mean": info["mean"]}
                 out["equation"] = format_ar_equation(info["coefficients"])
                 out["note"] = "AR coefficients apply to the series after subtracting its mean."
@@ -707,11 +906,12 @@ class GalileoTools:
                 params = norm.inverse_ode(params_n)
                 if refine:
                     # Fit in normalised time (well conditioned), then convert back.
-                    info = refine_ode(params_n, x_n, y_n)
+                    info = refine_ode(params_n, x_n, y_n, bound=1e6 if norm.enabled else None)
                     fitted_n = {k: info[k] for k in ("order", "a", "C1", "C2") if k in info}
                     params = norm.inverse_ode(fitted_n)
                     out["refined"] = bool(info["improved"])
-                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "message")}
+                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "n_parameters", "n_constants",
+                                                           "condition_number", "ill_conditioned", "message")}
                     for key in ("rmse", "rmse_initial"):
                         if out["fit"][key] is not None:
                             out["fit"][key] = float(out["fit"][key] * y_scale)
@@ -785,6 +985,7 @@ class GalileoTools:
             errors = np.abs(y_observed - y_predicted)
             rmse = float(np.sqrt(np.mean(errors ** 2)))
             max_error = float(np.max(errors))
+            r2 = float(r_squared(y_predicted, y_observed))
             
             y_range = float(np.max(y_observed) - np.min(y_observed))
             relative_error = rmse / y_range if y_range > 1e-8 else rmse
@@ -798,6 +999,7 @@ class GalileoTools:
                 "equation": equation,
                 "rmse": rmse,
                 "max_error": max_error,
+                "r2": r2 if np.isfinite(r2) else None,
                 "relative_error": float(relative_error),
                 "tolerance": tolerance,
                 "n_points": n,
