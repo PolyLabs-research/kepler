@@ -2,11 +2,10 @@
 refine.py - Fit the constants of a predicted equation to the observed data.
 
 The specialists are good at structure and mediocre at digits. Refinement keeps
-the predicted structure, treats every numeric literal in it as a free
-parameter initialised at the predicted value, and fits those parameters by
-least squares against the original data. Integer and rational exponents
-(x**2, x**(1/2)) are structural and stay fixed; float exponents such as a
-power-law index are fitted.
+the predicted structure, treats every Float literal in it as a free parameter
+initialised at the predicted value, and fits those parameters by least squares
+against the data. Integer and rational literals (x**2, x**(1/2), the 1 in a
+logistic) are structural and stay fixed.
 
 Three entry points, one per data shape:
 
@@ -16,6 +15,14 @@ Three entry points, one per data shape:
 
 Every path reports RMSE before and after, R^2 after, and whether the fitted
 constants were accepted (they are only accepted when they reduce RMSE).
+
+Degenerate fits
+---------------
+A template plus a free offset can imitate another family through cancelling
+terms: a*x**b + c with b -> 0 and a ~ -c ~ 1e3 is a logarithm in disguise and
+posts a respectable R^2. Such fits are detected by the cancellation ratio (the
+largest top-level term relative to the signal) and flagged `ill_conditioned`;
+refine_expression then prefers the well-conditioned variant.
 """
 from __future__ import annotations
 
@@ -30,6 +37,9 @@ from scipy.optimize import least_squares
 from expression import X
 
 _PENALTY = 1e6
+ILL_CONDITIONED_RATIO = 10.0     # top-level term rms / signal rms (legit sums stay well below)
+ILL_CONDITIONED_COND = 1e12      # Jacobian condition number at the solution
+AR_STATIONARY_MARGIN = 0.99      # max characteristic-root modulus for a stationary AR
 
 
 @dataclass
@@ -41,6 +51,14 @@ class RefineResult:
     r2: float = float("nan")
     improved: bool = False
     message: str = ""
+    # Diagnostics
+    n_constants: int = 0
+    max_abs_parameter: float = float("nan")
+    condition_number: float = float("nan")
+    cancellation_ratio: float = float("nan")
+    ill_conditioned: bool = False
+    variant: str = "template"
+    note: str = ""
 
     @property
     def n_parameters(self) -> int:
@@ -52,8 +70,15 @@ class RefineResult:
             "rmse": _as_float(self.rmse),
             "r2": _as_float(self.r2),
             "n_parameters": self.n_parameters,
+            "n_constants": int(self.n_constants),
             "improved": bool(self.improved),
+            "ill_conditioned": bool(self.ill_conditioned),
+            "cancellation_ratio": _as_float(self.cancellation_ratio),
+            "condition_number": _as_float(self.condition_number),
+            "max_abs_parameter": _as_float(self.max_abs_parameter),
+            "variant": self.variant,
             "message": self.message,
+            "note": self.note,
         }
 
 
@@ -63,7 +88,7 @@ def _as_float(v: float) -> Optional[float]:
 
 
 # =============================================================================
-# Metrics
+# Metrics and diagnostics
 # =============================================================================
 
 def _finite_pred(pred, n: int) -> np.ndarray:
@@ -92,6 +117,46 @@ def r_squared(pred: np.ndarray, y: np.ndarray) -> float:
     return 1.0 - ss_res / ss_tot
 
 
+def count_constants(expr: sympy.Expr) -> int:
+    """Number of distinct Float literals in an expression (its fitted constants)."""
+    return len(expr.atoms(sympy.Float))
+
+
+def cancellation_ratio(expr: sympy.Expr, x: np.ndarray, y: np.ndarray, x_symbol: sympy.Symbol = X) -> float:
+    """
+    Largest top-level term magnitude relative to the signal magnitude.
+
+    Well-conditioned sums have terms comparable to the signal (ratio ~ 1).
+    A ratio far above one means large terms cancel to produce the fit.
+    """
+    x = np.asarray(x, dtype=np.float64)
+    y = np.asarray(y, dtype=np.float64)
+    signal = float(np.sqrt(np.mean(y ** 2)))
+    if not np.isfinite(signal) or signal < 1e-12:
+        return float("nan")
+    worst = 0.0
+    for term in sympy.Add.make_args(expr):
+        try:
+            with np.errstate(all="ignore"):
+                vals = _finite_pred(sympy.lambdify(x_symbol, term, modules="numpy")(x), len(y))
+        except Exception:
+            return float("nan")
+        if not np.all(np.isfinite(vals)):
+            return float("inf")
+        worst = max(worst, float(np.sqrt(np.mean(vals ** 2))))
+    return worst / signal
+
+
+def _condition_number(jac) -> float:
+    try:
+        jac = np.asarray(jac, dtype=np.float64)
+        if jac.size == 0 or not np.all(np.isfinite(jac)):
+            return float("nan")
+        return float(np.linalg.cond(jac))
+    except Exception:
+        return float("nan")
+
+
 # =============================================================================
 # Algebraic expressions
 # =============================================================================
@@ -111,7 +176,7 @@ def parametrize(expr: sympy.Expr) -> Tuple[sympy.Expr, List[sympy.Symbol], List[
         values.append(float(value))
         return sym
 
-    def rebuild(e: sympy.Basic, in_exponent: bool = False) -> sympy.Basic:
+    def rebuild(e: sympy.Basic) -> sympy.Basic:
         if e.is_Number:
             # Integer and rational literals are structure: x**2, 1/(...), 1 + exp(...).
             # Every coefficient the specialists emit is parsed as a Float, so Floats
@@ -121,19 +186,135 @@ def parametrize(expr: sympy.Expr) -> Tuple[sympy.Expr, List[sympy.Symbol], List[
             return new_param(float(e))
         if e.is_Atom:
             return e
-        if isinstance(e, sympy.Pow):
-            base, exponent = e.args
-            return sympy.Pow(rebuild(base), rebuild(exponent, in_exponent=True), evaluate=False)
         return e.func(*[rebuild(a) for a in e.args], evaluate=False)
 
     return rebuild(expr), symbols, values
 
 
+def _needs_scale(expr: sympy.Expr) -> bool:
+    """True when the template has no free multiplicative constant of its own."""
+    if expr.is_Float:
+        return False
+    if isinstance(expr, sympy.Mul):
+        return not any(a.is_Float for a in expr.args)
+    if isinstance(expr, sympy.Add):
+        return not all(t.as_coeff_Mul()[0].is_Float for t in expr.args)
+    return True
+
+
+def _needs_offset(expr: sympy.Expr) -> bool:
+    """True when the template has no free additive constant of its own."""
+    if expr.is_Float:
+        return False
+    if isinstance(expr, sympy.Add):
+        return not any(t.is_Float for t in expr.args)
+    return True
+
+
 def _substitute(param_expr: sympy.Expr, symbols: Sequence[sympy.Symbol], values: Sequence[float]) -> sympy.Expr:
     expr = param_expr.xreplace({s: sympy.Float(v) for s, v in zip(symbols, values)})
     # Re-evaluate the tree now that constants are back in place.
-    expr = sympy.sympify(str(expr))
-    return expr
+    return sympy.sympify(str(expr))
+
+
+def _refine_variant(
+    expr: sympy.Expr,
+    x: np.ndarray,
+    y: np.ndarray,
+    x_symbol: sympy.Symbol,
+    max_nfev: int,
+    wrap: bool,
+    bound: Optional[float],
+) -> Optional[RefineResult]:
+    """One least-squares fit of `expr`, optionally wrapped as A*expr + B. None if the wrap adds nothing."""
+    n = len(y)
+    try:
+        param_expr, symbols, p0 = parametrize(expr)
+    except Exception as exc:  # pragma: no cover - defensive
+        return RefineResult(expression=expr, message=f"could not parametrise: {exc}", variant="template")
+
+    variant = "template"
+    if wrap:
+        added = False
+        if _needs_scale(expr):
+            scale_sym = sympy.Symbol("cA")
+            param_expr = scale_sym * param_expr
+            symbols, p0, added = [*symbols, scale_sym], [*p0, 1.0], True
+        if _needs_offset(expr):
+            offset_sym = sympy.Symbol("cB")
+            param_expr = param_expr + offset_sym
+            symbols, p0, added = [*symbols, offset_sym], [*p0, 0.0], True
+        if not added:
+            return None
+        variant = "affine"
+
+    try:
+        func = sympy.lambdify([x_symbol, *symbols], param_expr, modules="numpy")
+    except Exception as exc:  # pragma: no cover - defensive
+        return RefineResult(expression=expr, message=f"could not compile: {exc}", variant=variant)
+
+    def predict(params: Sequence[float]) -> np.ndarray:
+        with np.errstate(all="ignore"):
+            try:
+                return _finite_pred(func(x, *params), n)
+            except Exception:
+                return np.full(n, np.nan)
+
+    def finish(expression, params, rmse0, rmse1, r2, improved, message, jac=None) -> RefineResult:
+        res = RefineResult(expression=expression, parameters=[float(v) for v in params],
+                           rmse_initial=rmse0, rmse=rmse1, r2=r2, improved=improved,
+                           message=message, variant=variant)
+        res.n_constants = count_constants(expression)
+        res.max_abs_parameter = float(np.max(np.abs(params))) if len(params) else float("nan")
+        res.condition_number = _condition_number(jac) if jac is not None else float("nan")
+        res.cancellation_ratio = cancellation_ratio(expression, x, y, x_symbol)
+        at_bound = bound is not None and len(params) and res.max_abs_parameter >= bound * (1 - 1e-6)
+        res.ill_conditioned = bool(
+            (np.isfinite(res.cancellation_ratio) and res.cancellation_ratio > ILL_CONDITIONED_RATIO)
+            or res.cancellation_ratio == float("inf")
+            or at_bound
+            or (np.isfinite(res.condition_number) and res.condition_number > ILL_CONDITIONED_COND)
+        )
+        return res
+
+    pred0 = predict(p0)
+    rmse0 = rmse(pred0, y)
+    r2_0 = r_squared(pred0, y)
+
+    if not symbols:
+        return finish(expr, p0, rmse0, rmse0, r2_0, False, "no free constants")
+    if rmse0 == 0.0:
+        return finish(expr, p0, rmse0, rmse0, r2_0, False, "already exact")
+
+    def residuals(params: np.ndarray) -> np.ndarray:
+        res = predict(params) - y
+        return np.where(np.isfinite(res), np.clip(res, -_PENALTY, _PENALTY), _PENALTY)
+
+    p_start = np.asarray(p0, dtype=np.float64)
+    kwargs = {}
+    if bound is not None:
+        kwargs["bounds"] = (-bound, bound)
+        p_start = np.clip(p_start, -bound * (1 - 1e-9), bound * (1 - 1e-9))
+
+    try:
+        sol = least_squares(residuals, p_start, method="trf", x_scale="jac", max_nfev=max_nfev, **kwargs)
+    except Exception as exc:
+        return finish(expr, p0, rmse0, rmse0, r2_0, False, f"optimiser failed: {exc}")
+
+    pred1 = predict(sol.x)
+    rmse1 = rmse(pred1, y)
+    if not np.isfinite(rmse1) or rmse1 >= rmse0 * (1 - 1e-9):
+        return finish(expr, p0, rmse0, rmse0, r2_0, False, "fit did not improve on predicted constants")
+
+    try:
+        refined = _substitute(param_expr, symbols, sol.x)
+        if refined.is_polynomial(x_symbol):
+            refined = sympy.expand(refined)
+    except Exception as exc:
+        return finish(expr, p0, rmse0, rmse0, r2_0, False, f"could not substitute fitted constants: {exc}")
+
+    return finish(refined, sol.x, rmse0, rmse1, r_squared(pred1, y), True,
+                  "constants refitted by least squares", jac=sol.jac)
 
 
 def refine_expression(
@@ -143,76 +324,40 @@ def refine_expression(
     x_symbol: sympy.Symbol = X,
     max_nfev: int = 2000,
     affine_wrapper: bool = False,
+    bound: Optional[float] = None,
 ) -> RefineResult:
     """
-    Fit all numeric literals of `expr` to (x, y) by least squares.
+    Fit all Float literals of `expr` to (x, y) by least squares.
 
-    With affine_wrapper=True the fitted form is A*expr + B with A, B free
-    (initialised to 1 and 0), which lets a structure without an offset or
-    scale term still absorb one from the data.
+    With affine_wrapper=True a second fit of A*expr + B is run (A and B are
+    only added where the template lacks its own scale or offset) and the
+    better well-conditioned fit is kept; an ill-conditioned variant is
+    reported in `note` and never returned while a sound alternative exists.
+
+    `bound` limits every fitted constant to [-bound, bound]. Use it only in
+    normalised coordinates, where legitimate constants are small; it is a
+    guard against runaway values, not the degeneracy check (that is the
+    cancellation ratio).
     """
     x = np.asarray(x, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
-    n = len(y)
 
-    try:
-        param_expr, symbols, p0 = parametrize(expr)
-        if affine_wrapper:
-            scale_sym, offset_sym = sympy.Symbol("cA"), sympy.Symbol("cB")
-            param_expr = scale_sym * param_expr + offset_sym
-            symbols = [*symbols, scale_sym, offset_sym]
-            p0 = [*p0, 1.0, 0.0]
-        func = sympy.lambdify([x_symbol, *symbols], param_expr, modules="numpy")
-    except Exception as exc:  # pragma: no cover - defensive
-        return RefineResult(expression=expr, message=f"could not parametrise: {exc}")
+    results: List[RefineResult] = []
+    for wrap in ([False, True] if affine_wrapper else [False]):
+        res = _refine_variant(expr, x, y, x_symbol, max_nfev, wrap, bound)
+        if res is not None:
+            results.append(res)
 
-    def predict(params: Sequence[float]) -> np.ndarray:
-        with np.errstate(all="ignore"):
-            try:
-                return _finite_pred(func(x, *params), n)
-            except Exception:
-                return np.full(n, np.nan)
-
-    pred0 = predict(p0)
-    rmse0 = rmse(pred0, y)
-    result = RefineResult(expression=expr, parameters=list(p0), rmse_initial=rmse0,
-                          rmse=rmse0, r2=r_squared(pred0, y))
-
-    if not symbols:
-        result.message = "no free constants"
-        return result
-    if rmse0 == 0.0:
-        result.message = "already exact"
-        return result
-
-    def residuals(params: np.ndarray) -> np.ndarray:
-        res = predict(params) - y
-        return np.where(np.isfinite(res), np.clip(res, -_PENALTY, _PENALTY), _PENALTY)
-
-    try:
-        sol = least_squares(residuals, np.asarray(p0, dtype=np.float64), method="trf",
-                            x_scale="jac", max_nfev=max_nfev)
-    except Exception as exc:
-        result.message = f"optimiser failed: {exc}"
-        return result
-
-    pred1 = predict(sol.x)
-    rmse1 = rmse(pred1, y)
-    if not np.isfinite(rmse1) or rmse1 >= rmse0 * (1 - 1e-9):
-        result.message = "fit did not improve on predicted constants"
-        return result
-
-    try:
-        refined = _substitute(param_expr, symbols, sol.x)
-        if refined.is_polynomial(x_symbol):
-            refined = sympy.expand(refined)
-    except Exception as exc:
-        result.message = f"could not substitute fitted constants: {exc}"
-        return result
-
-    return RefineResult(expression=refined, parameters=[float(v) for v in sol.x],
-                        rmse_initial=rmse0, rmse=rmse1, r2=r_squared(pred1, y),
-                        improved=True, message="constants refitted by least squares")
+    sound = [r for r in results if not r.ill_conditioned]
+    pool = sound or results
+    best = min(pool, key=lambda r: r.rmse if np.isfinite(r.rmse) else float("inf"))
+    others = [r for r in results if r is not best]
+    if others:
+        best.note = "; ".join(
+            f"{r.variant} variant {'discarded as ill-conditioned' if r.ill_conditioned else 'not better'}"
+            f" (r2={r.r2:.4f}, rmse={r.rmse:.3g})" for r in others
+        )
+    return best
 
 
 # =============================================================================
@@ -229,6 +374,15 @@ def ar_predict(y_centered: np.ndarray, phi: Sequence[float]) -> np.ndarray:
     return pred
 
 
+def ar_stationarity(phi: Sequence[float], margin: float = AR_STATIONARY_MARGIN) -> Tuple[bool, float]:
+    """(is_stationary, max root modulus) for y[t] = sum phi_i y[t-i]."""
+    if not len(phi):
+        return True, 0.0
+    roots = np.roots([1.0] + [-float(c) for c in phi])
+    modulus = float(np.max(np.abs(roots))) if len(roots) else 0.0
+    return bool(modulus < margin), modulus
+
+
 def refine_ar(y: np.ndarray, phi_initial: Sequence[float]) -> Dict[str, object]:
     """Refit AR coefficients by ordinary least squares, keeping the predicted order."""
     y = np.asarray(y, dtype=np.float64)
@@ -236,12 +390,16 @@ def refine_ar(y: np.ndarray, phi_initial: Sequence[float]) -> Dict[str, object]:
     mean = float(np.mean(y))
     yc = y - mean
     n = len(yc)
+    stationary, modulus = ar_stationarity(phi_initial)
     out: Dict[str, object] = {
         "coefficients": [float(c) for c in phi_initial],
         "order": p,
         "mean": mean,
         "improved": False,
         "rmse_initial": None, "rmse": None, "r2": None,
+        "n_parameters": p, "n_constants": p,
+        "stationary": stationary, "max_root_modulus": modulus,
+        "ill_conditioned": False,
         "message": "",
     }
     if n <= p + 1:
@@ -259,8 +417,10 @@ def refine_ar(y: np.ndarray, phi_initial: Sequence[float]) -> Dict[str, object]:
 
     out["rmse_initial"] = _as_float(rmse0)
     if np.isfinite(rmse1) and rmse1 < rmse0 * (1 - 1e-9):
+        stationary, modulus = ar_stationarity(phi)
         out.update(coefficients=[float(c) for c in phi], improved=True,
                    rmse=_as_float(rmse1), r2=_as_float(r_squared(pred1, target)),
+                   stationary=stationary, max_root_modulus=modulus,
                    message="coefficients refitted by least squares")
     else:
         out.update(rmse=_as_float(rmse0), r2=_as_float(r_squared(pred0, target)),
@@ -289,18 +449,31 @@ def simulate_linear_ode(params: Dict[str, float], t: np.ndarray, y0: float, v0: 
     return sol[:, 0]
 
 
-def refine_ode(params: Dict[str, float], t: np.ndarray, y: np.ndarray, max_nfev: int = 400) -> Dict[str, object]:
+def refine_ode(
+    params: Dict[str, float],
+    t: np.ndarray,
+    y: np.ndarray,
+    max_nfev: int = 400,
+    bound: Optional[float] = None,
+) -> Dict[str, object]:
     """Refit ODE coefficients and initial conditions to the observed trajectory."""
     t = np.asarray(t, dtype=np.float64)
     y = np.asarray(y, dtype=np.float64)
     n = len(y)
+    order = params["order"]
+    # The trajectory fit spends every parameter, initial conditions included:
+    # A + B*exp(-c*t) needs three constants as a closed form but four here
+    # (C1, C2, y0, v0), and model comparison must count all of them.
+    n_params = 2 if order == 1 else 4
     out: Dict[str, object] = {**params, "improved": False, "rmse_initial": None,
-                              "rmse": None, "r2": None, "message": ""}
+                              "rmse": None, "r2": None, "condition_number": None,
+                              "ill_conditioned": False,
+                              "n_parameters": n_params, "n_constants": n_params,
+                              "message": ""}
     if n < 4 or np.any(np.diff(t) <= 0):
         out["message"] = "time axis must be strictly increasing with at least 4 samples"
         return out
 
-    order = params["order"]
     y0 = float(y[0])
     v0 = float(np.gradient(y, t)[0]) if order == 2 else 0.0
     if order == 1:
@@ -326,8 +499,14 @@ def refine_ode(params: Dict[str, float], t: np.ndarray, y: np.ndarray, max_nfev:
     out["rmse_initial"] = _as_float(rmse0)
     out["initial_conditions"] = {"y0": y0, "v0": v0} if order == 2 else {"y0": y0}
 
+    kwargs = {}
+    p_start = p0
+    if bound is not None:
+        kwargs["bounds"] = (-bound, bound)
+        p_start = np.clip(p0, -bound * (1 - 1e-9), bound * (1 - 1e-9))
+
     try:
-        sol = least_squares(residuals, p0, method="trf", x_scale="jac", max_nfev=max_nfev)
+        sol = least_squares(residuals, p_start, method="trf", x_scale="jac", max_nfev=max_nfev, **kwargs)
     except Exception as exc:
         out.update(rmse=_as_float(rmse0), r2=_as_float(r_squared(pred0, y)),
                    message=f"optimiser failed: {exc}")
@@ -337,7 +516,10 @@ def refine_ode(params: Dict[str, float], t: np.ndarray, y: np.ndarray, max_nfev:
     rmse1 = rmse(pred1, y)
     if np.isfinite(rmse1) and rmse1 < rmse0 * (1 - 1e-9):
         prm, y_init, v_init = unpack(sol.x)
+        cond = _condition_number(sol.jac)
         out.update(prm, improved=True, rmse=_as_float(rmse1), r2=_as_float(r_squared(pred1, y)),
+                   condition_number=_as_float(cond),
+                   ill_conditioned=bool(np.isfinite(cond) and cond > ILL_CONDITIONED_COND),
                    message="coefficients refitted against simulated trajectory")
         out["initial_conditions"] = {"y0": y_init, "v0": v_init} if order == 2 else {"y0": y_init}
     else:
