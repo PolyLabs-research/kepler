@@ -391,6 +391,7 @@ def test_ranked_discovery_picks_the_right_family(tools, monkeypatch):
     assert quad["strategy"] == "rank" and quad["model_used"] == "polynomial"
     assert len(quad["candidates"]) == 4 and quad["candidates"][0]["model"] == "polynomial"
     assert quad["candidates"][0]["delta_bic"] == 0.0 and quad["candidates"][0]["eligible"]
+    assert quad["fit"]["bic"] == quad["candidates"][0]["bic"] and quad["fit"]["delta_bic"] == 0.0
     assert tools.verify_equation(quad["equation"], x=x.tolist(), y=(0.02 * x**2 - 1.5 * x + 300).tolist())["match"]
 
     x = np.linspace(2000, 2020, 60)
@@ -410,6 +411,7 @@ def test_ranked_discovery_picks_the_right_family(tools, monkeypatch):
     ar = tools.discover_equation(y=(series + 5).tolist())
     assert ar.get("success") and ar["model_used"] == "ar", ar.get("candidates")
     assert "stationary AR" in ar["ranking_note"]
+    assert ar["fit"]["bic"] is not None and ar["fit"]["delta_bic"] == 0.0
     assert all(c["r2"] is None or c["r2"] < 0.5 for c in ar["candidates"] if c["track"] == "deterministic")
 
 
@@ -427,6 +429,8 @@ def test_ranked_discovery_prefers_closed_form_over_equivalent_ode(tools, monkeyp
     assert by_model["transcendental"]["n_constants"] == 3
     assert result["model_used"] == "transcendental", result["candidates"]
     assert by_model["transcendental"]["delta_bic"] <= 6.0
+    # The winner was chosen inside the Occam window, so its own delta_bic is positive.
+    assert result["fit"]["delta_bic"] == pytest.approx(by_model["transcendental"]["delta_bic"])
 
 
 def test_ranked_discovery_tier_hint_and_empty(tools, monkeypatch):
@@ -437,7 +441,7 @@ def test_ranked_discovery_tier_hint_and_empty(tools, monkeypatch):
     assert only_tier1.get("success") and [(c["model"], c["tier"]) for c in only_tier1["candidates"]] == [("polynomial", 1)]
 
     hinted = tools.discover_equation(y=y.tolist(), x=x.tolist(), model_hint="polynomial")
-    assert hinted["strategy"] == "hint" and "candidates" not in hinted
+    assert hinted["strategy"] == "hint" and "candidates" not in hinted and "bic" not in hinted["fit"]
 
     _stub(tools, monkeypatch, STUB_TOKENS, {})
     assert "error" in tools.discover_equation(y=y.tolist(), x=x.tolist())

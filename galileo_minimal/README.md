@@ -286,7 +286,7 @@ Result fields:
 | `model_equation` | What the model predicted, in its own normalised coordinates |
 | `equation_normalized` | Refined form in normalised coordinates (algebraic and ODE) |
 | `normalization` | The affine map that was applied |
-| `fit` | RMSE in original units, R², number of fitted constants, `ill_conditioned` with its `cancellation_ratio`, whether refinement improved the fit |
+| `fit` | RMSE in original units, R², number of fitted constants, `ill_conditioned` with its `cancellation_ratio`, whether refinement improved the fit; in the ranked strategy also the winner's `bic` and `delta_bic` |
 | `candidates`, `ranking_note` | Every specialist that was run, with BIC, `delta_bic` and eligibility, and why the winner was chosen (ranked strategy only) |
 | `confidence` | R² of the fit for algebraic and ODE results, structural heuristic otherwise (`confidence_source` says which) |
 | `ar`, `ode`, `initial_conditions` | Parsed parameters for time-series and ODE results |

@@ -664,11 +664,16 @@ class GalileoTools:
                 except Exception as e:
                     rows.append({"success": False, "model_used": model_name, "tier": t, "error": str(e)})
 
-            ranked, best, note = self._rank_candidates(rows, n)
+            ranked, best, best_entry, note = self._rank_candidates(rows, n)
             if best is None:
                 return {"error": "No specialist produced a usable fit", "candidates": ranked}
 
             result = dict(best)
+            if best_entry is not None and best_entry.get("bic") is not None:
+                # Put the winner's score where a caller reading `fit` expects it,
+                # not only in its row of `candidates`.
+                result["fit"] = {**(result.get("fit") or {}),
+                                 "bic": best_entry["bic"], "delta_bic": best_entry["delta_bic"]}
             result.update(success=True, strategy="rank", ranking_note=note, candidates=ranked)
             return result
 
@@ -676,7 +681,12 @@ class GalileoTools:
             return {"error": f"Ranked discovery failed: {str(e)}"}
 
     def _rank_candidates(self, rows: List[Dict[str, Any]], n: int):
-        """Score candidate results by BIC and apply the selection rule. Returns (entries, best_row, note)."""
+        """
+        Score candidate results by BIC and apply the selection rule.
+
+        Returns (entries, best_row, best_entry, note): every candidate's score
+        entry, the winning result row and its entry, and the reason.
+        """
         ln_n = math.log(max(n, 2))
         scored = []
         for r in rows:
@@ -753,7 +763,8 @@ class GalileoTools:
                         e["delta_bic"] = float(e["bic"] - floor)
         entries.sort(key=lambda e: (not e["eligible"], e["track"] != "deterministic",
                                     e["bic"] if e["bic"] is not None else float("inf")))
-        return entries, best, note
+        best_entry = next((e for e, r in scored if r is best), None) if best is not None else None
+        return entries, best, best_entry, note
 
     # =========================================================================
     # Shared discovery path: normalise -> predict -> interpret -> refine
