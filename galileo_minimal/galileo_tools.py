@@ -962,35 +962,41 @@ class GalileoTools:
         """
         Verify if an equation matches the given data.
         
+        The equation is evaluated at exactly the given x values, so irregular
+        spacing and unsorted x are fine.
+        
         Args:
             equation: Equation to verify
             y: Observed y values
-            x: x values (optional)
+            x: x values (optional; sample index 0..n-1 if omitted)
             tolerance: Relative error tolerance (default 0.1 = 10%)
             
         Returns:
             Dict with match status and error metrics
         """
         try:
-            y_observed = np.array(y, dtype=np.float32)
+            y_observed = np.asarray(y, dtype=np.float64)
             n = len(y_observed)
             
             # Generate x if not provided
             if x is None:
-                x = np.arange(n, dtype=np.float32)
+                x = np.arange(n, dtype=np.float64)
             else:
-                x = np.array(x, dtype=np.float32)
+                x = np.asarray(x, dtype=np.float64)
+            if x.shape != y_observed.shape:
+                return {"error": f"x has {x.size} values but y has {n}"}
             
-            # Generate predicted y from equation
-            x_synth, y_predicted = self.synthesizer.from_equation(
-                equation,
-                x_range=(float(x.min()), float(x.max())),
-                n_points=n
-            )
-            
-            # Interpolate if x values don't match exactly
-            if not np.allclose(x, x_synth):
-                y_predicted = np.interp(x, x_synth, y_predicted)
+            # Evaluate the equation at exactly the given x values. No grid,
+            # no interpolation, so irregular or unsorted x is handled exactly.
+            y_predicted = self.synthesizer.evaluate_at(equation, x)
+            undefined = ~np.isfinite(y_predicted)
+            if undefined.any():
+                return {
+                    "error": (
+                        f"Equation is not finite at {int(undefined.sum())} of {n} x values "
+                        f"(first at x={x[undefined][0]:g})"
+                    )
+                }
             
             # Compute error metrics
             errors = np.abs(y_observed - y_predicted)
