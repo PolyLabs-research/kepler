@@ -1,10 +1,13 @@
 """
 config.py - Hardware detection and full model suite configurations
 """
-import torch
 
 def get_device() -> str:
-    """Auto-detect best available device."""
+    """Auto-detect best available device (falls back to CPU when torch is absent)."""
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
     if torch.cuda.is_available():
         return "cuda"
     elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -13,6 +16,10 @@ def get_device() -> str:
 
 def get_vram_gb() -> float:
     """Get available VRAM in GB."""
+    try:
+        import torch
+    except ImportError:
+        return 0
     if torch.cuda.is_available():
         return torch.cuda.get_device_properties(0).total_memory / 1e9
     return 0

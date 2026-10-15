@@ -19,6 +19,14 @@ Usage with any LLM:
     # Execute tool calls from LLM
     result = tools.execute("synthesize_data", {"equation": "x**2 + 2*x - 1"})
 
+Real-data handling (discover_equation):
+    1. The data is mapped into the specialist's training frame (see normalize.py)
+       so the clipped feature extractors see the shape of the curve.
+    2. The predicted structure is kept, but every constant in it is refitted to
+       the data by least squares (see refine.py).
+    3. The equation is reported in the original units with RMSE and R^2.
+    Both steps can be switched off with normalize=False / refine=False.
+
 The TOOL_SCHEMAS are OpenAI-compatible and work with:
 - OpenAI (GPT-4, etc.)
 - Anthropic Claude (via tool_use)
@@ -42,38 +50,38 @@ except ImportError:
     Overseer = None
     ClassificationResult = None
 
-# Optional imports for discovery (requires torch and trained models)
+# Configuration, features and post-processing need only numpy/scipy/sympy.
+from config import get_device, CONFIGS, DOMAINS
+from vocab import Vocabulary
+from features import (
+    compute_algebraic_features,
+    compute_timeseries_features,
+    compute_dynamical_features,
+    compute_multivariate_features,
+)
+from expression import (
+    ExpressionParseError,
+    expression_to_string,
+    format_ar_equation,
+    format_ode_equation,
+    parse_ar_tokens,
+    parse_ode_tokens,
+    prune_small_terms,
+    tokens_to_infix,
+    tokens_to_sympy,
+)
+from normalize import fit_normalization
+from refine import r_squared, refine_ar, refine_expression, refine_ode, rmse as _rmse
+
+# Running a specialist needs torch and a trained checkpoint.
 _DISCOVERY_AVAILABLE = False
 try:
     import torch
-    from config import get_device, CONFIGS, DOMAINS
-    from vocab import Vocabulary
     from model import SymbolicTransformer
-    from generators import get_generator
-    from features import (
-        compute_algebraic_features,
-        compute_timeseries_features,
-        compute_dynamical_features,
-        compute_multivariate_features
-    )
     _DISCOVERY_AVAILABLE = True
 except ImportError:
-    # Minimal stubs for when torch is not available
     torch = None
-    CONFIGS = {}
-    DOMAINS = {}
-    Vocabulary = None
     SymbolicTransformer = None
-    def get_device():
-        return "cpu"
-    def compute_algebraic_features(x, y):
-        return np.zeros(48)
-    def compute_timeseries_features(y):
-        return np.zeros(32)
-    def compute_dynamical_features(y):
-        return np.zeros(64)
-    def compute_multivariate_features(data):
-        return np.zeros(64)
 
 
 # =============================================================================
@@ -146,14 +154,14 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "discover_equation",
-            "description": "Analyze numerical data and discover the underlying symbolic equation. Returns the predicted equation in symbolic form.",
+            "description": "Analyze numerical data and discover the underlying symbolic equation. The data is normalised into the model's frame, the constants of the predicted structure are refitted to the data, and the equation is returned in the original units together with RMSE and R^2.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "x": {
                         "type": "array",
                         "items": {"type": "number"},
-                        "description": "Input x values (independent variable)"
+                        "description": "Input x values (independent variable, or time for ODE data). If omitted, the sample index 0..n-1 is used."
                     },
                     "y": {
                         "type": "array",
@@ -174,6 +182,14 @@ TOOL_SCHEMAS = [
                         "type": "integer",
                         "enum": [1, 2, 3],
                         "description": "Model tier to use. Default: 2"
+                    },
+                    "normalize": {
+                        "type": "boolean",
+                        "description": "Map the data into the model's training frame before inference and map the equation back. Default true; set false only for data already in that frame."
+                    },
+                    "refine": {
+                        "type": "boolean",
+                        "description": "Refit the constants of the predicted structure to the data by least squares. Default true."
                     }
                 },
                 "required": ["y"]
@@ -195,7 +211,7 @@ TOOL_SCHEMAS = [
                     "x": {
                         "type": "array",
                         "items": {"type": "number"},
-                        "description": "Input x values"
+                        "description": "Input x values. If omitted, the sample index 0..n-1 is used."
                     },
                     "y": {
                         "type": "array",
@@ -421,198 +437,306 @@ class GalileoTools:
         data_type: Optional[str] = None,
         model_hint: Optional[str] = None,
         tier: Optional[int] = None,
-        include_classification: bool = False
+        include_classification: bool = False,
+        normalize: bool = True,
+        refine: bool = True,
     ) -> Dict[str, Any]:
         """
         Discover the symbolic equation underlying the data.
-        
+
         Args:
             y: Output values (required)
-            x: Input values (optional, will generate uniform spacing if not provided)
+            x: Input values, or time for ODE data. If omitted the sample index
+               0..n-1 is used and the result says so.
             data_type: One of "algebraic", "timeseries", "ode", "physics"
             model_hint: Specific model to use
             tier: Model tier (1, 2, or 3)
             include_classification: Include Overseer classification details in response
-            
+            normalize: Map data into the model's training frame first (default True)
+            refine: Refit the predicted constants to the data (default True)
+
         Returns:
-            Dict with discovered equation and confidence metrics
+            Dict with the equation in original units, the model's raw prediction,
+            the normalisation used, fit quality, and a confidence score.
         """
-        if not _DISCOVERY_AVAILABLE:
-            return {"error": "Discovery requires torch and trained models. Install torch and train a model first."}
-        
         try:
-            y = np.array(y, dtype=np.float32)
-            n = len(y)
-            
-            # Generate x if not provided
-            if x is None:
-                x = np.linspace(-5, 5, n).astype(np.float32)
-            else:
-                x = np.array(x, dtype=np.float32)
-            
+            y_arr = np.asarray(y, dtype=np.float64).ravel()
+            n = len(y_arr)
+            if n == 0:
+                return {"error": "y is empty"}
+            x_in = None if x is None else np.asarray(x, dtype=np.float64).ravel()
+            if x_in is not None and len(x_in) != n:
+                return {"error": f"x has {len(x_in)} values but y has {n}"}
+
             tier = tier or self.default_tier
-            
+
             # Reset classification cache
             self._last_classification = None
-            
+
             # Determine model to use (may populate self._last_classification)
-            model_name = self._select_model(y, x, data_type, model_hint)
-            
+            model_name = self._select_model(y_arr, x_in, data_type, model_hint)
             if model_name is None:
                 return {"error": "Could not determine appropriate model for this data"}
-            
-            # Load model
+
             model, vocab = self._load_model(model_name, tier)
-            
             if model is None:
+                if not _DISCOVERY_AVAILABLE:
+                    return {"error": "Discovery requires torch and trained models. Install torch and train a model first."}
                 return {"error": f"No checkpoint found for {model_name} tier {tier}"}
-            
-            # Compute features based on model type
-            features = self._compute_features(y, x, model_name)
-            
-            # Run inference
-            feat_tensor = torch.tensor(features, dtype=torch.float32).to(self.device)
-            
-            with torch.no_grad():
-                pred_ids = model.generate(feat_tensor, vocab)
-            
-            pred_tokens = vocab.decode(pred_ids)
-            
-            # Convert tokens to readable equation
-            equation_str = self._tokens_to_equation(pred_tokens, model_name)
-            
-            # Build response
-            result = {
-                "success": True,
-                "model_used": model_name,
-                "tier": tier,
-                "equation": equation_str,
-                "tokens": pred_tokens,
-                "confidence": self._estimate_confidence(features, pred_tokens),
-                "auto_routed": data_type is None and model_hint is None and self._overseer is not None
-            }
-            
-            # Include classification details if requested
+
+            result = self._discover_with_model(model_name, model, vocab, y_arr, x_in, tier, normalize, refine)
+            result["auto_routed"] = data_type is None and model_hint is None and self._overseer is not None
+
             if include_classification and self._last_classification is not None:
                 result["classification"] = {
                     "data_type": self._last_classification.data_type.value,
                     "model_rankings": self._last_classification.rankings,
                     "reasoning": self._last_classification.reasoning,
                 }
-            
             return result
-            
+
         except Exception as e:
             return {"error": f"Discovery failed: {str(e)}"}
-    
+
     def route_and_discover(
         self,
         y: List[float],
         x: Optional[List[float]] = None,
         tier: Optional[int] = None,
-        top_k: int = 3
+        top_k: int = 3,
+        normalize: bool = True,
+        refine: bool = True,
     ) -> Dict[str, Any]:
         """
-        Use Overseer to route to top-k models and return best result.
-        
-        This is a more sophisticated discovery that tries multiple models
-        and selects the one with the best fit.
-        
-        Args:
-            y: Output values (required)
-            x: Input values (optional)
-            tier: Model tier to use
-            top_k: Number of models to try (default 3)
-            
-        Returns:
-            Dict with best equation and alternatives
+        Use Overseer to route to top-k models and return the best result.
+
+        Every candidate goes through the same normalise, predict, refine path
+        as discover_equation; candidates are ranked by a blend of the
+        Overseer's confidence and the refined fit's R^2.
         """
         if not _DISCOVERY_AVAILABLE:
             return {"error": "Discovery requires torch and trained models."}
-        
         if self._overseer is None:
             return {"error": "Overseer not available. Use discover_equation instead."}
-        
+
         try:
-            y_arr = np.array(y, dtype=np.float32)
-            n = len(y_arr)
-            
-            if x is None:
-                x_arr = np.linspace(-5, 5, n).astype(np.float32)
-            else:
-                x_arr = np.array(x, dtype=np.float32)
-            
+            y_arr = np.asarray(y, dtype=np.float64).ravel()
+            x_in = None if x is None else np.asarray(x, dtype=np.float64).ravel()
             tier = tier or self.default_tier
-            
-            # Get classification from Overseer
-            classification = self._overseer.classify(y_arr, x_arr)
-            
-            # Try top-k models
+
+            classification = self._overseer.classify(y_arr, x_in)
+
             results = []
             for model_name, conf in classification.top_k(top_k):
+                model, vocab = self._load_model(model_name, tier)
+                if model is None:
+                    continue
                 try:
-                    model, vocab = self._load_model(model_name, tier)
-                    if model is None:
-                        continue
-                    
-                    features = self._compute_features(y_arr, x_arr, model_name)
-                    feat_tensor = torch.tensor(features, dtype=torch.float32).to(self.device)
-                    
-                    with torch.no_grad():
-                        pred_ids = model.generate(feat_tensor, vocab)
-                    
-                    pred_tokens = vocab.decode(pred_ids)
-                    equation_str = self._tokens_to_equation(pred_tokens, model_name)
-                    
-                    # Verify fit
-                    verify_result = self.verify_equation(equation_str, y, x.tolist() if x is not None else None)
-                    fit_score = 1.0 - verify_result.get("relative_error", 1.0) if verify_result.get("success") else 0.0
-                    
-                    results.append({
-                        "model": model_name,
-                        "equation": equation_str,
-                        "tokens": pred_tokens,
-                        "classification_confidence": float(conf),
-                        "fit_score": float(max(0, fit_score)),
-                        "combined_score": float(0.5 * conf + 0.5 * max(0, fit_score)),
-                    })
+                    r = self._discover_with_model(model_name, model, vocab, y_arr, x_in, tier, normalize, refine)
+                    fit = r.get("fit") or {}
+                    r2 = fit.get("r2")
+                    fit_score = float(np.clip(r2, 0.0, 1.0)) if r2 is not None else 0.0
                 except Exception as e:
-                    results.append({
-                        "model": model_name,
-                        "equation": f"Error: {e}",
-                        "tokens": [],
-                        "classification_confidence": float(conf),
-                        "fit_score": 0.0,
-                        "combined_score": 0.0,
-                    })
-            
+                    r = {"model_used": model_name, "equation": f"Error: {e}", "tokens": []}
+                    fit_score = 0.0
+                r["model"] = model_name
+                r["classification_confidence"] = float(conf)
+                r["fit_score"] = fit_score
+                r["combined_score"] = float(0.5 * conf + 0.5 * fit_score)
+                results.append(r)
+
             if not results:
                 return {"error": "No models could process this data"}
-            
-            # Sort by combined score
+
             results.sort(key=lambda r: r["combined_score"], reverse=True)
-            
-            best = results[0]
-            return {
-                "success": True,
-                "model_used": best["model"],
-                "tier": tier,
-                "equation": best["equation"],
-                "tokens": best["tokens"],
-                "confidence": best["combined_score"],
-                "classification_confidence": best["classification_confidence"],
-                "fit_score": best["fit_score"],
-                "alternatives": results[1:] if len(results) > 1 else [],
-                "classification": {
-                    "data_type": classification.data_type.value,
-                    "model_rankings": classification.rankings[:5],
-                    "reasoning": classification.reasoning,
-                }
+            best = dict(results[0])
+            best["success"] = True
+            best["confidence"] = best["combined_score"]
+            best["confidence_source"] = "overseer+fit"
+            best["alternatives"] = [
+                {k: r.get(k) for k in ("model", "equation", "fit_score", "classification_confidence", "combined_score", "fit")}
+                for r in results[1:]
+            ]
+            best["classification"] = {
+                "data_type": classification.data_type.value,
+                "model_rankings": classification.rankings[:5],
+                "reasoning": classification.reasoning,
             }
-            
+            return best
+
         except Exception as e:
             return {"error": f"Route and discover failed: {str(e)}"}
-    
+
+    # =========================================================================
+    # Shared discovery path: normalise -> predict -> interpret -> refine
+    # =========================================================================
+
+    @staticmethod
+    def _resolve_x(x: Optional[np.ndarray], n: int) -> Tuple[np.ndarray, Optional[str]]:
+        """Return x as float64, fabricating the sample index when none was given."""
+        if x is None:
+            return np.arange(n, dtype=np.float64), "index"
+        return np.asarray(x, dtype=np.float64), None
+
+    def _predict_tokens(self, model: Any, vocab: Any, features: np.ndarray) -> List[str]:
+        """Greedy-decode one feature vector into token strings."""
+        if torch is None:
+            raise RuntimeError("Discovery requires torch")
+        feat_tensor = torch.tensor(np.asarray(features, dtype=np.float32)).to(self.device)
+        with torch.no_grad():
+            pred_ids = model.generate(feat_tensor, vocab)
+        return vocab.decode(pred_ids)
+
+    def _discover_with_model(
+        self,
+        model_name: str,
+        model: Any,
+        vocab: Any,
+        y_arr: np.ndarray,
+        x_in: Optional[np.ndarray],
+        tier: int,
+        normalize: bool,
+        refine: bool,
+    ) -> Dict[str, Any]:
+        """Run one specialist end to end and return the full result dictionary."""
+        domain = DOMAINS.get(model_name, "algebraic")
+        x_arr, x_assumed = self._resolve_x(x_in, len(y_arr))
+
+        norm = fit_normalization(x_arr, y_arr, model_name, domain, enabled=normalize, x_assumed=x_assumed)
+        x_n, y_n = norm.transform(x_arr, y_arr)
+
+        features = self._compute_features(y_n, x_n, model_name)
+        pred_tokens = self._predict_tokens(model, vocab, features)
+
+        result: Dict[str, Any] = {
+            "success": True,
+            "model_used": model_name,
+            "tier": tier,
+            "tokens": pred_tokens,
+            "model_equation": self._tokens_to_equation(pred_tokens, model_name),
+            "normalization": norm.to_dict(),
+        }
+        if x_assumed:
+            result["x_assumed"] = "sample index 0..n-1 (no x provided)"
+
+        result.update(self._postprocess_prediction(domain, model_name, pred_tokens, norm, x_arr, y_arr, x_n, y_n, refine))
+
+        fit = result.get("fit") or {}
+        r2 = fit.get("r2")
+        if r2 is not None and domain in ("algebraic", "dynamical"):
+            result["confidence"] = float(np.clip(r2, 0.0, 1.0))
+            result["confidence_source"] = "fit_r2"
+        else:
+            # Stochastic (AR) and multivariate paths: R^2 is bounded by noise,
+            # so fall back to the structural heuristic.
+            result["confidence"] = self._estimate_confidence(features, pred_tokens)
+            result["confidence_source"] = "heuristic"
+        return result
+
+    @staticmethod
+    def _fit_metrics(expr, x_n: np.ndarray, y_n: np.ndarray, y_scale: float) -> Dict[str, Any]:
+        """RMSE (original units) and R^2 of an expression evaluated in normalised coordinates."""
+        import sympy
+        from expression import X as _X
+        try:
+            func = sympy.lambdify(_X, expr, modules="numpy")
+            with np.errstate(all="ignore"):
+                pred = func(x_n)
+            value = _rmse(pred, y_n)
+            return {
+                "rmse_initial": None,
+                "rmse": float(value * y_scale) if np.isfinite(value) else None,
+                "r2": float(r_squared(pred, y_n)) if np.isfinite(value) else None,
+                "n_parameters": 0,
+                "improved": False,
+                "message": "constants as predicted (refine=False)",
+            }
+        except Exception as exc:
+            return {"rmse_initial": None, "rmse": None, "r2": None, "n_parameters": 0,
+                    "improved": False, "message": f"could not evaluate: {exc}"}
+
+    def _postprocess_prediction(
+        self,
+        domain: str,
+        model_name: str,
+        tokens: List[str],
+        norm: Any,
+        x_arr: np.ndarray,
+        y_arr: np.ndarray,
+        x_n: np.ndarray,
+        y_n: np.ndarray,
+        refine: bool,
+    ) -> Dict[str, Any]:
+        """Interpret predicted tokens, refit constants, and express the result in original units."""
+        out: Dict[str, Any] = {"refined": False, "fit": None}
+        y_scale = norm.y_scale if norm.enabled else 1.0
+        try:
+            if domain == "algebraic":
+                expr_n = tokens_to_sympy(tokens, model_name)
+                if refine:
+                    res = refine_expression(expr_n, x_n, y_n, affine_wrapper=True)
+                    expr_n = res.expression
+                    fit = res.fit_dict()
+                    for key in ("rmse", "rmse_initial"):
+                        if fit[key] is not None:
+                            fit[key] = float(fit[key] * y_scale)
+                    out["refined"] = bool(res.improved)
+                    out["fit"] = fit
+                else:
+                    out["fit"] = self._fit_metrics(expr_n, x_n, y_n, y_scale)
+                tol = 1e-9 * (abs(y_scale) + abs(norm.y_shift) + 1.0)
+                readable = prune_small_terms(norm.readable_inverse(expr_n), tol)
+                out["equation"] = expression_to_string(readable)
+                out["equation_normalized"] = expression_to_string(expr_n)
+
+            elif domain == "timeseries":
+                phi = parse_ar_tokens(tokens)
+                info: Dict[str, Any] = {"coefficients": phi, "order": len(phi), "mean": float(np.mean(y_arr))}
+                if refine:
+                    info = refine_ar(y_arr, phi)
+                    out["refined"] = bool(info["improved"])
+                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "message")}
+                out["ar"] = {"coefficients": info["coefficients"], "order": info["order"], "mean": info["mean"]}
+                out["equation"] = format_ar_equation(info["coefficients"])
+                out["note"] = "AR coefficients apply to the series after subtracting its mean."
+
+            elif domain == "dynamical":
+                params_n = parse_ode_tokens(tokens)
+                if params_n is None:
+                    raise ExpressionParseError("tokens do not match a linear ODE template")
+                params = norm.inverse_ode(params_n)
+                if refine:
+                    # Fit in normalised time (well conditioned), then convert back.
+                    info = refine_ode(params_n, x_n, y_n)
+                    fitted_n = {k: info[k] for k in ("order", "a", "C1", "C2") if k in info}
+                    params = norm.inverse_ode(fitted_n)
+                    out["refined"] = bool(info["improved"])
+                    out["fit"] = {k: info.get(k) for k in ("rmse_initial", "rmse", "r2", "message")}
+                    for key in ("rmse", "rmse_initial"):
+                        if out["fit"][key] is not None:
+                            out["fit"][key] = float(out["fit"][key] * y_scale)
+                    ic = info.get("initial_conditions") or {}
+                    t_scale = norm.x_scale if norm.enabled else 1.0
+                    out["initial_conditions"] = {
+                        k: float(v * y_scale / (t_scale if k == "v0" else 1.0)) for k, v in ic.items()
+                    }
+                out["ode"] = params
+                out["equation"] = format_ode_equation(params)
+                out["equation_normalized"] = format_ode_equation(params_n)
+
+            else:  # multivariate
+                out["equation"] = self._tokens_to_equation(tokens, model_name)
+                out["warning"] = (
+                    "physics_laws discovery through this interface sees only the output column, "
+                    "but the model was trained on input-output correlations; treat the result as unreliable."
+                )
+        except Exception as exc:
+            # A malformed prediction must not lose the rest of the result.
+            out["equation"] = self._tokens_to_equation(tokens, model_name)
+            out["fit"] = None
+            out["postprocess_error"] = f"could not interpret the prediction: {type(exc).__name__}: {exc}"
+        return out
+
     # =========================================================================
     # Tool 3: Verify Equation
     # =========================================================================
@@ -642,7 +766,7 @@ class GalileoTools:
             
             # Generate x if not provided
             if x is None:
-                x = np.linspace(-5, 5, n).astype(np.float32)
+                x = np.arange(n, dtype=np.float32)
             else:
                 x = np.array(x, dtype=np.float32)
             
@@ -734,6 +858,8 @@ class GalileoTools:
     ) -> str:
         """Fallback model selection using simple heuristics (when Overseer unavailable)."""
         n = len(y)
+        if x is None:
+            x = np.arange(n, dtype=np.float64)
         
         # Check for oscillatory behavior (suggests ODE or trig)
         zero_crossings = np.sum(np.diff(np.sign(y - np.mean(y))) != 0)
@@ -770,6 +896,9 @@ class GalileoTools:
     ) -> Tuple[Optional[Any], Optional[Any]]:
         """Load a model from checkpoint, with caching."""
         
+        if torch is None or SymbolicTransformer is None:
+            return None, None
+
         cache_key = f"{model_name}_tier{tier}"
         
         if cache_key in self._model_cache:
@@ -818,99 +947,50 @@ class GalileoTools:
             return None, None
     
     def _compute_features(
-        self, 
-        y: np.ndarray, 
-        x: np.ndarray, 
+        self,
+        y: np.ndarray,
+        x: np.ndarray,
         model_name: str
     ) -> np.ndarray:
-        """Compute feature vector for the given data and model type."""
-        
+        """Compute the feature vector for the given data and model type."""
         domain = DOMAINS.get(model_name, "algebraic")
-        
+
         if domain == "timeseries":
             return compute_timeseries_features(y)
         elif domain == "dynamical":
-            return compute_dynamical_features(y)
+            return compute_dynamical_features(y, t=x)
         elif domain == "multivariate":
-            # For physics laws, we need structured data
-            # This is a simplified version using just output
+            # For physics laws, we need structured data.
+            # This is a simplified version using just output.
             return compute_multivariate_features({"output": y})
         else:
             # Algebraic (polynomial, transcendental)
             return compute_algebraic_features(x, y)
-    
+
     def _tokens_to_equation(self, tokens: List[str], model_name: str) -> str:
-        """Convert token list to human-readable equation string."""
-        
-        # Filter special tokens
+        """
+        Render the model's raw token prediction as a human-readable string.
+
+        This is the prediction in the model's own (normalised) coordinates;
+        discover_equation reports the equation in original units separately.
+        """
         tokens = [t for t in tokens if t not in ["PAD", "BOS", "EOS", "UNK"]]
-        
         if not tokens:
             return "0"
-        
-        # ODE format
-        if model_name == "linear_ode":
-            return " ".join(tokens)
-        
-        # Build expression string
-        parts = []
-        i = 0
-        
-        mapping = {
-            "MUL": "*", "DIV": "/", "ADD": "+", "SUB": "-", 
-            "POW": "**", "NEG": "-"
-        }
-        
-        while i < len(tokens):
-            t = tokens[i]
-            
-            if t == "CONST":
-                # Parse constant value
-                i += 1
-                val = ""
-                if i < len(tokens) and tokens[i] == "NEG":
-                    val += "-"
-                    i += 1
-                while i < len(tokens) and (tokens[i].isdigit() or tokens[i] == "POINT"):
-                    val += "." if tokens[i] == "POINT" else tokens[i]
-                    i += 1
-                parts.append(val if val else "C")
-                continue
-            
-            if t in mapping:
-                parts.append(mapping[t])
-            elif t.startswith("INT_"):
-                parts.append(t.split("_")[1])
-            elif t == "HALF":
-                parts.append("0.5")
-            elif t == "THIRD":
-                parts.append("(1/3)")
-            elif t == "QUARTER":
-                parts.append("0.25")
-            elif t in ("SIN", "COS", "TAN", "SQRT", "EXP", "LN", "LOG"):
-                parts.append(t.lower() + "(")
-                # Look for argument
-                i += 1
-                if i < len(tokens):
-                    if tokens[i] == "X":
-                        parts.append("x)")
-                    else:
-                        parts.append(tokens[i] + ")")
-                else:
-                    parts.append("x)")
-                i += 1
-                continue
-            elif t == "PI":
-                parts.append("π")
-            elif t == "E":
-                parts.append("e")
-            else:
-                parts.append(t.lower())
-            
-            i += 1
-        
-        return " ".join(parts)
-    
+
+        domain = DOMAINS.get(model_name, "algebraic")
+        try:
+            if domain == "dynamical":
+                params = parse_ode_tokens(tokens)
+                return format_ode_equation(params) if params else " ".join(tokens)
+            if domain == "timeseries":
+                return format_ar_equation(parse_ar_tokens(tokens))
+            if domain == "algebraic":
+                return expression_to_string(tokens_to_sympy(tokens, model_name))
+        except ExpressionParseError:
+            pass
+        return tokens_to_infix(tokens)
+
     def _estimate_confidence(self, features: np.ndarray, tokens: List[str]) -> float:
         """
         Estimate confidence in the prediction.
