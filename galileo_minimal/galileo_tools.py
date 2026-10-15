@@ -626,7 +626,8 @@ class GalileoTools:
         Occam window of 6 BIC points of the best score the candidate with the
         fewest constants wins, so a richer structure (an ODE whose solutions
         include an offset exponential, say) has to fit clearly better than the
-        closed form to be preferred. Ill-conditioned fits are ineligible.
+        closed form to be preferred. Ill-conditioned fits, non-stationary AR
+        fits and diverged fits (r2 < 0) are ineligible.
 
         AR answers a different question (is this a stationary stochastic
         process?) and its one-step residuals are not comparable to curve
@@ -722,10 +723,16 @@ class GalileoTools:
             else:
                 rss = max(n * float(rmse_v) ** 2, 1e-300)
                 entry["bic"] = float(n * math.log(rss / n) + entry["n_constants"] * ln_n)
+                r2_v = fit.get("r2")
                 if entry["ill_conditioned"]:
                     entry["reason"] = "ill-conditioned fit (cancelling terms)"
                 elif track == "stochastic" and not fit.get("stationary", True):
                     entry["reason"] = "non-stationary AR fit"
+                elif r2_v is not None and (not np.isfinite(r2_v) or r2_v < 0.0):
+                    # Worse than predicting the mean: a diverged ODE trajectory
+                    # or a template that cannot bend to the data. Its BIC is
+                    # kept so it still sorts and can serve as a last resort.
+                    entry["reason"] = "diverged fit (worse than the mean, r2 < 0)"
                 else:
                     entry["eligible"] = True
             scored.append((entry, r))

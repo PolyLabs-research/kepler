@@ -457,6 +457,35 @@ def test_discovery_resamples_uneven_x_for_the_model_only(tools, monkeypatch):
     assert indexed["resampling"] is None and indexed["x_assumed"]
 
 
+def _row(model, tier, equation, r2, rmse, n_constants, **fit):
+    return {"success": True, "model_used": model, "tier": tier, "equation": equation,
+            "fit": {"r2": r2, "rmse": rmse, "n_constants": n_constants, **fit}}
+
+
+def test_ranking_marks_diverged_fits_ineligible(tools):
+    # Seen on 8 log-spaced points: a linear_ode trajectory blew up to RMSE 6e7
+    # and R^2 of -1e12 yet stayed eligible. Finite nonsense must not qualify.
+    good = _row("polynomial", 3, "x**2", 0.99999, 0.2, 3)
+    blown = _row("linear_ode", 3, "dx/dt = 0.73*x", -1.2e12, 5.9e7, 2)
+    poor = _row("transcendental", 1, "log(x)", 0.3, 30.0, 2)
+    entries, best, best_entry, note = tools._rank_candidates([blown, good, poor], n=8)
+    by_model = {e["model"]: e for e in entries}
+    assert best is good and best_entry["model"] == "polynomial" and "best deterministic" in note
+    assert by_model["linear_ode"]["eligible"] is False
+    assert by_model["linear_ode"]["reason"].startswith("diverged fit")
+    assert by_model["linear_ode"]["bic"] is not None and by_model["linear_ode"]["delta_bic"] > 0
+    # A merely poor fit is still eligible; it just loses.
+    assert by_model["transcendental"]["eligible"] is True
+    # Ineligible candidates sort after eligible ones.
+    assert [e["model"] for e in entries][-1] == "linear_ode"
+
+    # When everything diverges the fallback reports the least bad and says why.
+    entries, best, _, note = tools._rank_candidates(
+        [_row("linear_ode", 1, "a", -5.0, 100.0, 2), _row("polynomial", 1, "b", -0.1, 10.0, 2)], n=8)
+    assert best["equation"] == "b" and note.startswith("every fit was flagged (diverged fit")
+    assert all(not e["eligible"] for e in entries)
+
+
 def test_ranked_discovery_picks_the_right_family(tools, monkeypatch):
     _stub(tools, monkeypatch, STUB_TOKENS, ALL_TIER1)
     rng = np.random.default_rng(3)
