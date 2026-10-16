@@ -66,6 +66,13 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   log-normal about the law with a fitted spread (`Fit.nuisance["log_spread"]`). Dropping the
   bounds, or reading them as times, biases a growth law low; this uses both.
 
+- One law across groups: `fit_groups("power", L, T, lattice, shared=("b",), sigma=err)` fits
+  one exponent for every lattice and an amplitude per lattice (`a[hexagon]`), in one
+  likelihood, so the shared constant's error bar uses all the data. `compare_sharing` fits every
+  pattern (nothing shared, each subset, everything) and says which the data support, by BIC
+  with an Occam window and by a likelihood-ratio p-value against sharing nothing: "is the
+  exponent universal across lattices?" `GroupFit.fit_for("hexagon")` predicts like any fit.
+
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
 
