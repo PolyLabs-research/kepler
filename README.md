@@ -86,6 +86,22 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   a truncated one; `goodness_of_fit` is the bootstrap p-value that can rule a family out
   (Clauset, Shalizi and Newman 2009).
 
+- Is a constant a known number? `identify(0.3341, 0.0053)` lists closed forms (p/q, p/q times
+  pi, e, sqrt 2, ..., square roots) and named constants (`KNOWN`: 2D percolation and Ising
+  exponents, directed percolation, KPZ, coarsening, percolation thresholds) within the error
+  bar, simplest first, each with `p_chance`, the chance that a match that simple and that close
+  would turn up anyway at that error bar. `identify_fit(fit)` does every constant of a fit.
+- Exact laws for integer data (periods, counts): `find_integer_laws(n, y)` tries polynomials,
+  laws per residue class, gcd/lcm forms, exponentials, linear recurrences, periodic sequences,
+  and products of number-theoretic features (the odd part of n, the multiplicative order of 2),
+  in exact arithmetic. Each law says how many points determined it and how many more confirmed
+  it; laws that agree on the data but part beyond it are reported as rivals, and
+  `integer_laws.disagreement` names the next n that would decide.
+- Conserved quantities: `find_invariants(runs, modulus=2)` finds the integer combinations of
+  counts that never change in any run (exact null space, reduced by LLL to short vectors), and
+  those conserved only mod a prime. `Invariants.beyond(known)` counts what the known
+  bookkeeping identities do not explain.
+
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
 

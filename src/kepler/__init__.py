@@ -11,6 +11,7 @@ Works on any (x, y) data; needs numpy, scipy and sympy only. The specialist
 transformers (galileo_minimal/, the `models` extra) and the MCP server (the
 `mcp` extra) are separate and optional.
 """
+from kepler.constants import KNOWN, ConstantMatch, identify, identify_fit
 from kepler.design import Separation, separation
 from kepler.distributions import (
     DistributionComparison,
@@ -21,6 +22,8 @@ from kepler.distributions import (
     goodness_of_fit,
 )
 from kepler.fitting import Fit, fit, information, parse_skeleton, predict, predict_covariance
+from kepler.integer_laws import IntegerLaw, find_integer_laws
+from kepler.invariants import Invariant, Invariants, find_invariants
 from kepler.joint import GroupFit, Sharing, compare_sharing, fit_groups
 from kepler.laws import FSS_LAWS, GROWTH_LAWS, LAWS, PROBABILITY_LAWS, TIME_LAWS, Law, get_law
 from kepler.replicates import ReplicateComparison, ReplicateFit, compare_replicates, fit_replicates
@@ -29,12 +32,17 @@ from kepler.ranking import MIN_R2, OCCAM_WINDOW, RankEntry, Ranking, bic, occam_
 __version__ = "0.1.0"
 
 __all__ = [
+    "ConstantMatch",
     "DistributionComparison",
     "DistributionFit",
     "FSS_LAWS",
     "Fit",
     "GROWTH_LAWS",
     "GroupFit",
+    "IntegerLaw",
+    "Invariant",
+    "Invariants",
+    "KNOWN",
     "LAWS",
     "Law",
     "MIN_R2",
@@ -51,6 +59,8 @@ __all__ = [
     "compare_distributions",
     "compare_replicates",
     "compare_sharing",
+    "find_integer_laws",
+    "find_invariants",
     "find_xmin",
     "fit",
     "fit_distribution",
@@ -58,6 +68,8 @@ __all__ = [
     "fit_replicates",
     "get_law",
     "goodness_of_fit",
+    "identify",
+    "identify_fit",
     "information",
     "occam_order",
     "parse_skeleton",
