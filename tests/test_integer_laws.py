@@ -55,6 +55,21 @@ def test_number_theoretic_features():
     assert law(41) == 2 ** 20 - 1
 
 
+def test_the_suborder_of_two():
+    """Rule 90's periods on cycles: 2^sord(n) - 1 for odd n, doubled for each factor of 2."""
+    def sord(m):
+        k, v = 1, 2 % m
+        while v not in (1, m - 1):
+            v, k = v * 2 % m, k + 1
+        return k
+
+    n = [m for m in range(3, 31) if m & (m - 1)]  # powers of 2 aside
+    odd = [m // (m & -m) for m in n]
+    y = [(m & -m) * (2 ** sord(o) - 1) for m, o in zip(n, odd)]
+    law = best(n, y)
+    assert law.expression == "2^v(n)*(2^sord(n) - 1)" and law.confirmed_by == len(n) - 1
+
+
 def pow_order(m):
     k, v = 1, 2 % m
     while v != 1:

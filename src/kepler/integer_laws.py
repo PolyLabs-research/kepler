@@ -17,8 +17,9 @@ and checked against all the others:
     periodic          y_(n+p) = y_n on consecutive n
     number theory     y = k f(n) or k f(n) g(n), f and g among n, the odd part of n, 2^v (the
                       power of 2 in n), ord (the multiplicative order of 2 modulo the odd
-                      part) and 2^ord - 1: the quantities periods of linear (XOR) rules on
-                      tori are built from
+                      part), sord (its suborder, the least j with 2^j = +-1 modulo the odd
+                      part), 2^ord - 1 and 2^sord - 1: the quantities periods of linear (XOR)
+                      rules on tori are built from (Martin, Odlyzko and Wolfram 1984)
 
 Complexity orders the results: the number of unknowns, then their size in bits.
 """
@@ -280,12 +281,25 @@ def _order_of_two(m: int) -> int:
     return k
 
 
+def _suborder_of_two(m: int) -> int:
+    """The least j >= 1 with 2^j = 1 or -1 modulo m (1 for m <= 3)."""
+    if m <= 3:
+        return 1
+    k, v = 1, 2 % m
+    while v not in (1, m - 1):
+        v = (v * 2) % m
+        k += 1
+    return k
+
+
 _FEATURES: Dict[str, Callable[[int], int]] = {
     "n": lambda n: n,
     "odd(n)": _odd_part,
     "2^v(n)": lambda n: n // _odd_part(n),
     "ord(n)": lambda n: _order_of_two(_odd_part(n)),
+    "sord(n)": lambda n: _suborder_of_two(_odd_part(n)),
     "(2^ord(n) - 1)": lambda n: 2 ** _order_of_two(_odd_part(n)) - 1,
+    "(2^sord(n) - 1)": lambda n: 2 ** _suborder_of_two(_odd_part(n)) - 1,
 }
 
 
