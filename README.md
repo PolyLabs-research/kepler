@@ -61,6 +61,10 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   size with an error bar. `FSS_LAWS` rank it against a fixed threshold (`sharpening`) and
   against no transition at all (`crossover`, the same curve at every size).
 - `separation(..., likelihood="binomial", trials=20)` sizes a count design the same way.
+- Times that are sometimes only bounds (a run that hit its cap before the event) take
+  `likelihood="censored"`: one row per run, `censored` marking the bounds, each time
+  log-normal about the law with a fitted spread (`Fit.nuisance["log_spread"]`). Dropping the
+  bounds, or reading them as times, biases a growth law low; this uses both.
 
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
