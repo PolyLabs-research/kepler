@@ -19,8 +19,17 @@ GalileoTools instance:
                    a constant, so it is 0 for the constant itself, which wins
                    only when no richer law earns its extra constants
 
-BIC only compares fits of the same data: the same points, the same weights
-and the same space (linear or log). rank() refuses anything else.
+BIC only compares fits of the same data: the same points, the same weights,
+the same space (linear or log) and the same likelihood (Fit.neg2loglik has a
+different base for known and unknown errors). rank() refuses anything else.
+
+Overdispersion. Fits with absolute sigmas and `inflate` (errors that are real
+estimates, which the data may outrun) are compared on a quasi-likelihood: every
+chi-square is divided by one shared factor c = max(1, the smallest chi^2 / dof
+among the fits), the reduced chi-square of the law that fits best. If the
+points scatter more than their stated errors allow, c > 1 and differences
+between laws shrink accordingly; sigmas that are too small cannot make a
+verdict look decisive. With c = 1 this is the plain known-error BIC.
 """
 from __future__ import annotations
 
@@ -98,6 +107,7 @@ class Ranking:
     confident: bool
     occam_window: float = OCCAM_WINDOW
     min_r2: float = MIN_R2
+    overdispersion: float = 1.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -106,8 +116,23 @@ class Ranking:
             "note": self.note,
             "occam_window": self.occam_window,
             "min_r2": self.min_r2,
+            "overdispersion": self.overdispersion,
             "entries": [e.to_dict() for e in self.entries],
         }
+
+
+def bic_from(neg2loglik: float, n: int, k: int) -> float:
+    """BIC from -2 ln L (up to a shared constant), the sample size and the constants."""
+    return float(neg2loglik + k * math.log(max(n, 2)))
+
+
+def _overdispersion(fits: Sequence[Any]) -> float:
+    """The shared factor c (module docstring): 1 unless every fit has known, inflatable errors."""
+    if not fits or not all(getattr(f, "inflate", False) and getattr(f, "likelihood", "gaussian")
+                           == "gaussian" for f in fits):
+        return 1.0
+    reduced = [f.rss / f.dof for f in fits if f.success and f.dof > 0 and _finite(f.rss)]
+    return max(1.0, min(reduced)) if reduced else 1.0
 
 
 def _free_of_x(fit: Any) -> bool:
@@ -143,11 +168,20 @@ def rank(
         raise ValueError(f"n={n} but the fits have n={ns.pop()}")
     if len({f.space for f in fits}) > 1 or len({f.weighted for f in fits}) > 1:
         raise ValueError("fits in different spaces or with different weighting cannot be ranked together")
+    bases = {(getattr(f, "likelihood", "gaussian"), bool(f.weighted and f.absolute_sigma),
+              tuple(getattr(f, "variables", ("x",)))) for f in fits}
+    if len(bases) > 1:
+        raise ValueError("fits with different likelihoods, variables or error models (absolute vs "
+                         "relative sigma) cannot be ranked together")
+    c = _overdispersion(fits)
 
     entries: List[RankEntry] = []
     for f in fits:
         r2 = f.r2_fit if _finite(f.r2_fit) else None
-        entry = RankEntry(name=f.name, bic=f.bic if _finite(f.bic) else None, delta_bic=None,
+        score = f.bic
+        if c > 1.0 and _finite(f.bic):
+            score = bic_from(f.neg2loglik / c, f.n_obs or f.n, f.n_constants)
+        entry = RankEntry(name=f.name, bic=score if _finite(score) else None, delta_bic=None,
                           n_constants=f.n_constants, r2=r2, eligible=False, reason="", fit=f)
         if not f.success:
             entry.reason = f.message or "fit failed"
@@ -175,7 +209,7 @@ def rank(
 
     if not eligible:
         reasons = "; ".join(f"{e.name}: {e.reason}" for e in entries) or "no fits"
-        return Ranking(ordered, None, f"no law fits ({reasons})", False, occam_window, min_r2)
+        return Ranking(ordered, None, f"no law fits ({reasons})", False, occam_window, min_r2, c)
 
     best = eligible[0]
     lowest = min(e.bic for e in eligible)
@@ -188,4 +222,6 @@ def rank(
         note += f"; chosen over a richer law within the {occam_window:g}-point Occam window"
     if not confident:
         note = f"low confidence: {note}, below r2 = {min_r2:g}"
-    return Ranking(ordered, best, note, confident, occam_window, min_r2)
+    if c > 1.0:
+        note += f"; scatter {c:.2g}x the stated errors, so BIC differences are divided by {c:.2g}"
+    return Ranking(ordered, best, note, confident, occam_window, min_r2, c)

@@ -21,6 +21,12 @@ ratio), scatter within them never narrows them. That suits sigmas that are real 
 estimates on few points, where the reduced chi-square itself is noisy (with 5 degrees of
 freedom it falls below 0.2 one time in 30). `Fit.error_scale` is the s^2 used.
 
+Model comparison uses -2 ln L up to a constant shared by every law fitted to the same data
+(`Fit.neg2loglik`): with absolute sigmas the errors are known and it is the chi-square; otherwise
+the error size is unknown and it is n ln(RSS / n). `bic` adds k ln n and `aicc` the small-sample
+AIC penalty 2k + 2k(k+1)/(n-k-1). kepler.rank refuses to compare fits whose -2 ln L have
+different bases.
+
 The band from predict() is the uncertainty of the fitted curve itself, from
 the constants' covariance (the delta method), with a Student-t quantile on
 n - k degrees of freedom. It is not a prediction interval for one new
@@ -44,7 +50,6 @@ from sympy.parsing.sympy_parser import parse_expr
 
 from kepler.expression import X, expression_to_string
 from kepler.laws import LAWS, Law
-from kepler.ranking import bic as _bic
 from kepler.refine import (
     RefineResult,
     _check_space,
@@ -87,6 +92,14 @@ class Fit:
     param_expression: sympy.Expr = field(repr=False)
     param_symbols: Tuple[sympy.Symbol, ...] = field(repr=False)
     error_scale: float = float("nan")  # the s^2 the covariance was scaled by
+    inflate: bool = False
+    # -2 ln L up to a constant shared by every law fitted to the same data, the sample size its
+    # BIC penalty counts, and the small-sample AIC.
+    neg2loglik: float = float("nan")
+    n_obs: int = 0
+    aicc: float = float("nan")
+    likelihood: str = "gaussian"
+    variables: Tuple[str, ...] = ("x",)
 
     @property
     def n_constants(self) -> int:
@@ -126,6 +139,12 @@ class Fit:
             "weighted": self.weighted,
             "absolute_sigma": self.absolute_sigma,
             "error_scale": self.error_scale,
+            "inflate": self.inflate,
+            "neg2loglik": self.neg2loglik,
+            "n_obs": self.n_obs,
+            "aicc": self.aicc,
+            "likelihood": self.likelihood,
+            "variables": list(self.variables),
             "ill_conditioned": self.ill_conditioned,
             "success": self.success,
             "message": self.message,
@@ -230,9 +249,17 @@ def _covariance(jac: np.ndarray, s2: float) -> Tuple[np.ndarray, bool]:
     return cov * s2, False
 
 
+def information(neg2loglik: float, n: int, k: int) -> Tuple[float, float]:
+    """(BIC, AICc) from -2 ln L, the sample size and the number of fitted constants."""
+    bic = float(neg2loglik + k * math.log(max(n, 2)))
+    aicc = float(neg2loglik + 2 * k + (2 * k * (k + 1) / (n - k - 1) if n - k - 1 > 0 else math.inf))
+    return bic, aicc
+
+
 def _failed(name: str, formula: str, n: int, space: str, weighted: bool, absolute_sigma: bool,
             message: str, param_expr: Optional[sympy.Expr] = None,
-            symbols: Sequence[sympy.Symbol] = (), p0: Sequence[float] = ()) -> Fit:
+            symbols: Sequence[sympy.Symbol] = (), p0: Sequence[float] = (),
+            likelihood: str = "gaussian", variables: Tuple[str, ...] = ("x",)) -> Fit:
     k = len(symbols)
     expr = param_expr.xreplace({s: sympy.Float(v) for s, v in zip(symbols, p0)}) if param_expr is not None else sympy.nan
     nan = float("nan")
@@ -242,7 +269,7 @@ def _failed(name: str, formula: str, n: int, space: str, weighted: bool, absolut
                space=space, weighted=weighted, absolute_sigma=absolute_sigma, ill_conditioned=False,
                success=False, message=message,
                param_expression=param_expr if param_expr is not None else sympy.nan,
-               param_symbols=tuple(symbols))
+               param_symbols=tuple(symbols), n_obs=n, likelihood=likelihood, variables=variables)
 
 
 def fit(
@@ -338,15 +365,20 @@ def fit(
         s2 = rss / dof if dof > 0 else math.inf
     cov, singular = _covariance(jac, s2)
     stderr = tuple(float(math.sqrt(v)) if v >= 0 else math.nan for v in np.diag(cov))
+    # Known errors: -2 ln L is the chi-square. Unknown error size, profiled out: n ln(RSS / n).
+    known = weighted and absolute_sigma
+    neg2 = rss if known else float(n * math.log(max(rss, 1e-300) / n))
+    bic, aicc = information(neg2, n, k)
 
     return Fit(
         name=name, formula=formula, expression=res.expression,
         param_names=tuple(str(s) for s in symbols), params=tuple(params), stderr=stderr,
         covariance=cov, n=n, rmse=float(res.rmse), r2=float(res.r2), rss=rss, r2_fit=float(r2_fit),
-        bic=_bic(rss, n, k), space=space, weighted=weighted, absolute_sigma=absolute_sigma,
+        bic=bic, space=space, weighted=weighted, absolute_sigma=absolute_sigma,
         ill_conditioned=bool(res.ill_conditioned or singular), success=True,
         message=res.message + ("; constants not identifiable from these data" if singular else ""),
         param_expression=param_expr, param_symbols=tuple(symbols), error_scale=float(s2),
+        inflate=bool(inflate and known), neg2loglik=neg2, n_obs=n, aicc=aicc,
     )
 
 

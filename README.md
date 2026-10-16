@@ -39,6 +39,15 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   test of held-out points.
 - The MCP server gains `fit_skeleton`: a language model proposes an equation and gets its
   constants fitted. `verify_equation` never refits.
+- Model comparison is likelihood-based: with absolute sigmas a fit's BIC is chi-square +
+  k ln n (known errors), otherwise n ln(RSS/n) + k ln n; `Fit.aicc` is the small-sample AIC.
+  With `inflate`, `rank` divides every chi-square by one shared overdispersion factor (the
+  best law's reduced chi-square, at least 1), so errors that are too small cannot make a
+  verdict look decisive.
+- `separation(truth, rival, x, relative=0.1, space="log", truth_params={...})` says before a
+  run whether a design can tell two laws apart: the expected BIC difference, the factor by
+  which the seeds must grow to reach a margin, and (with `simulations=N`) the chance of a
+  decisive right or wrong verdict.
 
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.

@@ -11,7 +11,8 @@ Works on any (x, y) data; needs numpy, scipy and sympy only. The specialist
 transformers (galileo_minimal/, the `models` extra) and the MCP server (the
 `mcp` extra) are separate and optional.
 """
-from kepler.fitting import Fit, fit, parse_skeleton, predict, predict_covariance
+from kepler.design import Separation, separation
+from kepler.fitting import Fit, fit, information, parse_skeleton, predict, predict_covariance
 from kepler.laws import GROWTH_LAWS, LAWS, Law, get_law
 from kepler.ranking import MIN_R2, OCCAM_WINDOW, RankEntry, Ranking, bic, occam_order, rank
 
@@ -26,12 +27,15 @@ __all__ = [
     "OCCAM_WINDOW",
     "RankEntry",
     "Ranking",
+    "Separation",
     "bic",
     "fit",
     "get_law",
+    "information",
     "occam_order",
     "parse_skeleton",
     "predict",
     "predict_covariance",
     "rank",
+    "separation",
 ]
