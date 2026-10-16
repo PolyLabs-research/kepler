@@ -1,0 +1,45 @@
+[project]
+name = "kepler"
+version = "0.1.0"
+description = "Fit, rank and predict closed-form laws with error bars: the classical core of Kepler."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "sympy>=1.12",
+]
+
+[project.optional-dependencies]
+# The specialist transformers (galileo_minimal/train.py, model.py). Install the CUDA build of
+# torch by hand where it matters; galileo_minimal/setup.sh does.
+models = [
+    "torch>=2.0",
+]
+# The MCP server (galileo_minimal/mcp_server.py).
+mcp = [
+    "mcp>=1.2",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Only the library goes into the wheel. galileo_minimal/ (training, checkpoints, the MCP server
+# and its tests) stays a folder of scripts that imports the library.
+[tool.hatch.build.targets.wheel]
+packages = ["src/kepler"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/pyproject.toml",
+    "/README.md",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
