@@ -25,6 +25,9 @@ TRUE = {
     "exponential_area": {"a": 2.0, "b": 0.002},
     "logistic": {"c": 0.9, "k": -20.0, "x0": 0.4},
     "shifted_power": {"c": 0.3, "a": 0.8, "b": -1.2},
+    "relaxation": {"c": 0.2, "a": 0.3, "tau": 15.0},
+    "stretched_exponential": {"c": 0.2, "a": 0.3, "tau": 15.0, "beta": 0.6},
+    "algebraic_relaxation": {"c": 0.2, "a": 0.3, "tau": 5.0, "b": 0.8},
     "logistic_p": {"k": 20.0, "x0": 0.4},
     "window": {"k1": 30.0, "x1": 0.25, "k2": 30.0, "x2": 0.7},
 }
@@ -62,6 +65,8 @@ def test_skeleton_keeps_every_constant(name, case):
 def _sample(name):
     if name in ("logistic", "logistic_p", "window"):
         return np.linspace(0.05, 0.95, 19)
+    if name in ("relaxation", "stretched_exponential", "algebraic_relaxation"):
+        return np.arange(0.0, 120.0, 4.0)
     if name == "shifted_power":
         return np.array([8, 12, 16, 24, 32, 48, 64, 96, 128], dtype=float)
     return np.array([4, 6, 8, 12, 16, 24, 32, 48, 64], dtype=float)

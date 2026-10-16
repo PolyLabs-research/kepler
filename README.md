@@ -73,6 +73,19 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   with an Occam window and by a likelihood-ratio p-value against sharing nothing: "is the
   exponent universal across lattices?" `GroupFit.fit_for("hexagon")` predicts like any fit.
 
+- Laws over time (`TIME_LAWS`): `relaxation` c + a e^(-x/tau), `stretched_exponential`, and
+  `algebraic_relaxation` c + a (1 + x/tau)^-b. For curves measured once per seed,
+  `fit_replicates(law, t, Y)` (one row of Y per seed) takes the error bars from resampling whole
+  seeds, since points along one run are correlated and the scatter about the mean curve
+  understates them; `compare_replicates(TIME_LAWS, t, Y)` says how often each law is chosen
+  across those resamples.
+- Distributions of sizes and times (`kepler.distributions`): `fit_distribution(samples,
+  "power_law", xmin, discrete=True)` for power law, truncated power law, exponential and
+  lognormal, continuous or on the integers; `find_xmin` picks the tail by the KS distance;
+  `compare_distributions` gives Vuong's test, or a likelihood-ratio test for a power law inside
+  a truncated one; `goodness_of_fit` is the bootstrap p-value that can rule a family out
+  (Clauset, Shalizi and Newman 2009).
+
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
 

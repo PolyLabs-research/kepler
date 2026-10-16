@@ -23,6 +23,12 @@ the right minimum with 10 to 20 points.
     shifted_power     c + a*x**b                   x > 0; finite-size scaling,
                                                    rho*(L) = rho_inf + a L^-b
 
+Settling over time (x the generation; x >= 0):
+
+    relaxation            c + a*exp(-x/tau)
+    stretched_exponential c + a*exp(-(x/tau)**beta)
+    algebraic_relaxation  c + a*(1 + x/tau)**(-b)
+
 Probabilities, fitted with likelihood="binomial" (survived out of seeds):
 
     logistic_p        1/(1 + exp(-k*(x - x0)))     a step from 0 to 1 at x0
@@ -205,6 +211,38 @@ def _guess_fss_logistic(v, y):
     return [r, a, 1.0, w, s]
 
 
+def _decay_guess(x, y, level: float):
+    """(c, a, t) for a curve settling from y[0] towards c: c is the mean of the last fifth, a the
+    initial gap, t when the gap has shrunk to `level` of it (a third of the span if never)."""
+    order = np.argsort(x)
+    xs, ys = x[order], y[order]
+    tail = max(1, len(ys) // 5)
+    c = float(np.mean(ys[-tail:]))
+    gap = ys - c
+    a = float(gap[0]) if gap[0] != 0 else float(np.max(np.abs(gap))) or 1.0
+    span = float(np.ptp(xs)) or 1.0
+    t = span / 3.0
+    shrunk = np.flatnonzero(np.abs(gap) <= level * abs(a))
+    if len(shrunk) and xs[shrunk[0]] > xs[0]:
+        t = float(xs[shrunk[0]] - xs[0])
+    return c, a, max(t, span * 1e-3), float(xs[0])
+
+
+def _guess_relaxation(x, y):
+    c, a, tau, x0 = _decay_guess(x, y, math.exp(-1.0))
+    return [c, a * math.exp(min(x0 / tau, 50.0)), tau]
+
+
+def _guess_stretched(x, y):
+    c, a, tau, _ = _decay_guess(x, y, math.exp(-1.0))
+    return [c, a, tau, 1.0]
+
+
+def _guess_algebraic(x, y):
+    c, a, half, _ = _decay_guess(x, y, 0.5)
+    return [c, a, half, 1.0]
+
+
 def _guess_crossover(v, y):
     r, a, _, w, s = _guess_fss_logistic(v, y)
     typical = float(np.median(np.asarray(v["L"], dtype=float)))
@@ -313,6 +351,13 @@ LAWS: Dict[str, Law] = {law.name: law for law in (
         "logistic step of height c at x0 (a survival curve)", _guess_logistic),
     Law("shifted_power", "c + a*x**b", ("c", "a", "b"),
         "power-law approach to a limit (finite-size scaling)", _guess_shifted_power, positive_x=True),
+    # Approach to a steady state over time (density, damage): x is the generation, x >= 0.
+    Law("relaxation", "c + a*exp(-x/tau)", ("c", "a", "tau"),
+        "exponential approach to the level c with time constant tau", _guess_relaxation),
+    Law("stretched_exponential", "c + a*exp(-(x/tau)**beta)", ("c", "a", "tau", "beta"),
+        "stretched (beta < 1) or compressed exponential approach to c", _guess_stretched),
+    Law("algebraic_relaxation", "c + a*(1 + x/tau)**(-b)", ("c", "a", "tau", "b"),
+        "power-law approach to c, as in coarsening", _guess_algebraic),
     # Probabilities (fit with likelihood="binomial").
     Law("logistic_p", "1/(1 + exp(-k*(x - x0)))", ("k", "x0"),
         "a probability stepping from 0 to 1 (k > 0) or 1 to 0 (k < 0) at x0", _guess_logistic_p),
@@ -334,6 +379,8 @@ LAWS: Dict[str, Law] = {law.name: law for law in (
 
 # The six shapes the settling-time prototype compared (2026-10-16).
 GROWTH_LAWS: Tuple[str, ...] = ("constant", "logarithmic", "linear", "power", "exponential", "exponential_area")
+# Shapes for a quantity settling over time.
+TIME_LAWS: Tuple[str, ...] = ("constant", "relaxation", "stretched_exponential", "algebraic_relaxation")
 # Shapes for a probability against one setting.
 PROBABILITY_LAWS: Tuple[str, ...] = ("constant", "logistic_p", "window")
 # A probability against density rho and size L: is there a transition, and where is it at L -> oo?

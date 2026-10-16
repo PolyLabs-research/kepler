@@ -275,7 +275,23 @@ def _gradient_fn(param_expr: sympy.Expr, symbols: Sequence[sympy.Symbol], variab
         if not symbols:
             return np.zeros((m, 0))
         with np.errstate(all="ignore"):
-            return np.column_stack([as_array(c, m) for c in g(*cols, *params)])
+            out = np.column_stack([as_array(c, m) for c in g(*cols, *params)])
+        bad = ~np.isfinite(out)
+        if np.any(bad):
+            # A derivative such as x**b * log(x) is 0 * -inf at x = 0, though its limit is finite:
+            # where the law itself is finite, difference it numerically instead.
+            rows = np.flatnonzero(np.any(bad, axis=1))
+            sub = [c[rows] if np.ndim(c) else c for c in cols]
+            if np.all(np.isfinite(value(sub, params))):
+                for j in np.flatnonzero(np.any(bad, axis=0)):
+                    h = 1e-6 * max(abs(float(params[j])), 1e-3)
+                    up, down = list(params), list(params)
+                    up[j] += h
+                    down[j] -= h
+                    fd = (value(sub, up) - value(sub, down)) / (2.0 * h)
+                    col = out[rows, j]
+                    out[rows, j] = np.where(np.isfinite(col), col, fd)
+        return out
 
     return value, grad
 
