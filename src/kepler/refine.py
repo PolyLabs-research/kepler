@@ -35,6 +35,7 @@ optimiser minimised.
 """
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -102,6 +103,14 @@ class RefineResult:
         }
 
 
+@functools.lru_cache(maxsize=1024)
+def compile_numpy(args: Tuple[sympy.Symbol, ...], expr) -> object:
+    """sympy.lambdify(args, expr) for numpy, cached: compiling dominates the cost of a small
+    fit, and a loop fits the same few templates thousands of times. `expr` may be a tuple of
+    expressions (the function then returns a list)."""
+    return sympy.lambdify(list(args), list(expr) if isinstance(expr, tuple) else expr, modules="numpy")
+
+
 def _as_float(v: float) -> Optional[float]:
     v = float(v)
     return v if np.isfinite(v) else None
@@ -158,7 +167,7 @@ def cancellation_ratio(expr: sympy.Expr, x: np.ndarray, y: np.ndarray, x_symbol:
     for term in sympy.Add.make_args(expr):
         try:
             with np.errstate(all="ignore"):
-                vals = _finite_pred(sympy.lambdify(x_symbol, term, modules="numpy")(x), len(y))
+                vals = _finite_pred(compile_numpy((x_symbol,), term)(x), len(y))
         except Exception:
             return float("nan")
         if not np.all(np.isfinite(vals)):
@@ -285,7 +294,7 @@ def _fit_parametrized(
                 space=space, weighted=sigma is not None)
 
     try:
-        func = sympy.lambdify([x_symbol, *symbols], param_expr, modules="numpy")
+        func = compile_numpy((x_symbol, *symbols), param_expr)
     except Exception as exc:  # pragma: no cover - defensive
         return RefineResult(expression=expr, message=f"could not compile: {exc}", **base)
 

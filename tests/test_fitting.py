@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from scipy.optimize import curve_fit
 
-from kepler import fit, predict
+from kepler import fit, predict, predict_covariance
 
 L = np.array([6, 8, 10, 12, 16, 20, 24, 32, 40], dtype=float)
 
@@ -152,3 +152,26 @@ def test_to_dict_is_json_ready():
     failed = fit("logarithmic", [0.0, 1.0], [1.0, 2.0]).to_dict()
     json.dumps(failed)
     assert failed["bic"] is None and failed["success"] is False
+
+
+@pytest.mark.parametrize("space", ["linear", "log"])
+def test_predict_covariance_matches_the_band(space):
+    from scipy import stats
+
+    y, sigma = power_data(seed=9)
+    result = fit("power", L, y, sigma=sigma, space=space)
+    x_new = np.array([48.0, 64.0, 128.0])
+    centre, cov = predict_covariance(result, x_new)
+    assert cov.shape == (3, 3) and np.allclose(cov, cov.T)
+    assert np.all(np.linalg.eigvalsh(cov) > -1e-12)
+    f, low, high = predict(result, x_new)
+    q = stats.t.ppf(0.975, result.dof)
+    if space == "log":
+        assert np.allclose(centre, np.log(f))
+        assert np.allclose(np.log(high) - centre, q * np.sqrt(np.diag(cov)))
+    else:
+        assert np.allclose(centre, f)
+        assert np.allclose(high - f, q * np.sqrt(np.diag(cov)))
+    # Neighbouring predictions share the constants: strongly correlated.
+    corr = cov[0, 1] / np.sqrt(cov[0, 0] * cov[1, 1])
+    assert corr > 0.9

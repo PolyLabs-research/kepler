@@ -28,6 +28,7 @@ log f and exponentiated, so it is asymmetric and always positive.
 """
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -40,7 +41,14 @@ from sympy.parsing.sympy_parser import parse_expr
 from kepler.expression import X, expression_to_string
 from kepler.laws import LAWS, Law
 from kepler.ranking import bic as _bic
-from kepler.refine import RefineResult, _check_space, _point_weights, refine_expression, refine_parametrized
+from kepler.refine import (
+    RefineResult,
+    _check_space,
+    _point_weights,
+    compile_numpy,
+    refine_expression,
+    refine_parametrized,
+)
 
 Skeleton = Union[str, sympy.Expr, Law]
 
@@ -172,10 +180,16 @@ def _resolve_law(skeleton: Skeleton) -> Optional[Law]:
 # Fit
 # =============================================================================
 
+@functools.lru_cache(maxsize=1024)
+def _derivatives(param_expr: sympy.Expr, symbols: Tuple[sympy.Symbol, ...]) -> Tuple[sympy.Expr, ...]:
+    return tuple(sympy.diff(param_expr, s) for s in symbols)
+
+
 def _gradient_fn(param_expr: sympy.Expr, symbols: Sequence[sympy.Symbol], x_symbol: sympy.Symbol):
     """f and df/dp as numpy functions of (x, *params), each returning float arrays of len(x)."""
-    f = sympy.lambdify([x_symbol, *symbols], param_expr, modules="numpy")
-    g = sympy.lambdify([x_symbol, *symbols], [sympy.diff(param_expr, s) for s in symbols], modules="numpy")
+    args = (x_symbol, *symbols)
+    f = compile_numpy(args, param_expr)
+    g = compile_numpy(args, _derivatives(param_expr, tuple(symbols)))
 
     def as_array(v, m: int) -> np.ndarray:
         arr = np.asarray(v)
@@ -330,6 +344,29 @@ def fit(
 # =============================================================================
 # Predict
 # =============================================================================
+
+def predict_covariance(fit_result: Fit, x: Sequence[float]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    The fitted law at `x` in its fit space (log f for a log-space fit, f otherwise) and the
+    covariance matrix of those values from the constants' covariance, G C G^T (the delta
+    method). Predictions at several x share the constants, so their errors are correlated;
+    a joint test of held-out measurements needs the whole matrix, not only the bands.
+    """
+    x_arr = np.atleast_1d(np.asarray(x, dtype=np.float64))
+    m = len(x_arr)
+    if not fit_result.success:
+        return np.full(m, np.nan), np.full((m, m), np.nan)
+    value, grad = _gradient_fn(fit_result.param_expression, fit_result.param_symbols, X)
+    params = list(fit_result.params)
+    f = value(x_arr, params)
+    g = grad(x_arr, params)
+    with np.errstate(all="ignore"):
+        if fit_result.space == "log":
+            g = g / f[:, None]
+            f = np.log(f)
+        cov = g @ fit_result.covariance @ g.T if fit_result.covariance.size else np.zeros((m, m))
+    return f, cov
+
 
 def predict(fit_result: Fit, x: Union[float, Sequence[float]], level: float = 0.95):
     """

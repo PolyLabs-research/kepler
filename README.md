@@ -34,7 +34,9 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
 - `rank(fits, n, occam_window=6.0, min_r2=0.5)` is the rule `GalileoTools.discover_best` uses,
   now shared code. It refuses to compare fits of different data, weights or spaces.
 - `predict(fit, x, level=0.95)` returns the curve and its confidence band. A held-out
-  measurement's own error is the caller's to add.
+  measurement's own error is the caller's to add. `predict_covariance(fit, x)` gives the full
+  covariance of predictions at several x (correlated through the shared constants), for a joint
+  test of held-out points.
 - The MCP server gains `fit_skeleton`: a language model proposes an equation and gets its
   constants fitted. `verify_equation` never refits.
 

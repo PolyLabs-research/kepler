@@ -25,6 +25,7 @@ the right minimum with 10 to 20 points.
 """
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
@@ -126,6 +127,14 @@ def _guess_shifted_power(x, y):
     return [c, a, b]
 
 
+@functools.lru_cache(maxsize=256)
+def _parse_formula(formula: str, params: Tuple[str, ...], x_symbol: sympy.Symbol):
+    symbols = tuple(sympy.Symbol(p) for p in params)
+    local: Dict[str, sympy.Basic] = {p: s for p, s in zip(params, symbols)}
+    local["x"] = x_symbol
+    return sympy.sympify(formula, locals=local), symbols
+
+
 @dataclass(frozen=True)
 class Law:
     """A named law shape: `formula` in x and `params`, a starting guess, and its domain."""
@@ -139,10 +148,8 @@ class Law:
 
     def parametrized(self, x_symbol: sympy.Symbol = X) -> Tuple[sympy.Expr, List[sympy.Symbol]]:
         """The formula as a SymPy expression in `x_symbol` and its parameter symbols."""
-        symbols = [sympy.Symbol(p) for p in self.params]
-        local: Dict[str, sympy.Basic] = {p: s for p, s in zip(self.params, symbols)}
-        local["x"] = x_symbol
-        return sympy.sympify(self.formula, locals=local), symbols
+        expr, symbols = _parse_formula(self.formula, self.params, x_symbol)
+        return expr, list(symbols)
 
     def domain_problem(self, x: np.ndarray) -> Optional[str]:
         """Why this law cannot be fitted at these x values, or None."""
