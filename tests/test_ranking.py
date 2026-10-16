@@ -98,3 +98,14 @@ def test_to_dict():
     data = rank([fit(name, L, y, sigma=sigma) for name in ("linear", "power")]).to_dict()
     json.dumps(data)
     assert data["best"] == "linear" and len(data["entries"]) == 2
+
+
+def test_a_constant_is_never_ineligible_for_rounding():
+    # Its R^2 is 0 by construction; rounding can make it -1e-16, which is no divergence.
+    rng = np.random.default_rng(3)
+    x = np.array([8, 10, 12, 16, 20, 24, 32], dtype=float)
+    for _ in range(50):
+        y = 60 * np.exp(0.1 * rng.standard_normal(len(x)))
+        sigma = 0.1 * y * (1 + rng.random(len(x)))
+        ranking = rank([fit("constant", x, y, sigma=sigma, space="log")])
+        assert ranking.entries[0].eligible, ranking.entries[0]

@@ -30,6 +30,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 OCCAM_WINDOW = 6.0
 MIN_R2 = 0.5
+# R^2 of a constant is 0 by construction (least squares lands on the weighted mean), so rounding
+# can leave it a hair below zero; that is not a fit worse than the mean.
+R2_TOLERANCE = 1e-9
 
 T = TypeVar("T")
 
@@ -152,7 +155,7 @@ def rank(
             entry.reason = "no finite fit"
         elif f.ill_conditioned:
             entry.reason = "ill-conditioned fit (cancelling terms or unidentifiable constants)"
-        elif r2 is None or r2 < 0.0:
+        elif r2 is None or r2 < -R2_TOLERANCE:
             entry.reason = "diverged fit (worse than the mean, r2 < 0)"
         else:
             entry.eligible = True
