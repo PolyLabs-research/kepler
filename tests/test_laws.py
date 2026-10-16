@@ -25,7 +25,12 @@ TRUE = {
     "exponential_area": {"a": 2.0, "b": 0.002},
     "logistic": {"c": 0.9, "k": -20.0, "x0": 0.4},
     "shifted_power": {"c": 0.3, "a": 0.8, "b": -1.2},
+    "logistic_p": {"k": 20.0, "x0": 0.4},
+    "window": {"k1": 30.0, "x1": 0.25, "k2": 30.0, "x2": 0.7},
 }
+
+# Laws in x alone; laws of several variables have their own tests (test_likelihoods.py).
+SINGLE = [name for name, law in LAWS.items() if law.variables == ("x",)]
 
 
 def test_the_zero_constant_trap_is_real():
@@ -35,7 +40,7 @@ def test_the_zero_constant_trap_is_real():
     assert len(parametrize(sympy.sympify("0.0 + 1.0*x"))[1]) == 1
 
 
-@pytest.mark.parametrize("name", list(LAWS))
+@pytest.mark.parametrize("name", SINGLE)
 @pytest.mark.parametrize("case", list(ADVERSARIAL))
 def test_starting_constants_are_finite_and_non_zero(name, case):
     x, y = ADVERSARIAL[case]
@@ -44,7 +49,7 @@ def test_starting_constants_are_finite_and_non_zero(name, case):
     assert all(np.isfinite(v) and v != 0.0 for v in values), values
 
 
-@pytest.mark.parametrize("name", list(LAWS))
+@pytest.mark.parametrize("name", SINGLE)
 @pytest.mark.parametrize("case", [None, *ADVERSARIAL])
 def test_skeleton_keeps_every_constant(name, case):
     law = LAWS[name]
@@ -55,14 +60,14 @@ def test_skeleton_keeps_every_constant(name, case):
 
 
 def _sample(name):
-    if name == "logistic":
+    if name in ("logistic", "logistic_p", "window"):
         return np.linspace(0.05, 0.95, 19)
     if name == "shifted_power":
         return np.array([8, 12, 16, 24, 32, 48, 64, 96, 128], dtype=float)
     return np.array([4, 6, 8, 12, 16, 24, 32, 48, 64], dtype=float)
 
 
-@pytest.mark.parametrize("name", list(LAWS))
+@pytest.mark.parametrize("name", SINGLE)
 def test_each_law_recovers_its_own_constants(name):
     law = LAWS[name]
     x = _sample(name)
@@ -76,6 +81,21 @@ def test_each_law_recovers_its_own_constants(name):
     assert result.success, result.message
     for p in law.params:
         assert result.value(p) == pytest.approx(truth[p], abs=5 * result.error(p) + 1e-9 * abs(truth[p])), p
+
+
+def test_a_law_of_several_variables_starts_from_its_own_data():
+    law = LAWS["fss_logistic"]
+    assert law.variables == ("rho", "L")
+    rho = np.tile(np.linspace(0.1, 0.5, 9), 3)
+    L = np.repeat([16.0, 32.0, 64.0], 9)
+    for y in (np.zeros(27), np.full(27, 0.5), (rho > 0.3).astype(float)):
+        values = law.initial({"rho": rho, "L": L}, y)
+        assert len(values) == 5 and all(np.isfinite(v) and v != 0.0 for v in values)
+    _, symbols, _ = parametrize(sympy.sympify(law.skeleton()))
+    assert len(symbols) == 5
+    assert law.domain_problem({"rho": rho, "L": -L}) == "fss_logistic needs every L > 0"
+    with pytest.raises(ValueError, match="dict"):
+        law.initial(rho, np.zeros(27))
 
 
 def test_get_law():

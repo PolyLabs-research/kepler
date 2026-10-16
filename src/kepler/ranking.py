@@ -127,18 +127,20 @@ def bic_from(neg2loglik: float, n: int, k: int) -> float:
 
 
 def _overdispersion(fits: Sequence[Any]) -> float:
-    """The shared factor c (module docstring): 1 unless every fit has known, inflatable errors."""
-    if not fits or not all(getattr(f, "inflate", False) and getattr(f, "likelihood", "gaussian")
-                           == "gaussian" for f in fits):
+    """The shared factor c (module docstring): 1 unless every fit has known, inflatable errors.
+    For counts (binomial, Poisson) `rss` is the deviance, so c is the quasi-likelihood's."""
+    if not fits or not all(getattr(f, "inflate", False) for f in fits):
         return 1.0
     reduced = [f.rss / f.dof for f in fits if f.success and f.dof > 0 and _finite(f.rss)]
     return max(1.0, min(reduced)) if reduced else 1.0
 
 
 def _free_of_x(fit: Any) -> bool:
+    """True when the law depends on none of its variables (a constant)."""
     expr = getattr(fit, "param_expression", None)
+    variables = set(getattr(fit, "variables", ("x",)))
     try:
-        return expr is not None and not any(str(s) == "x" for s in expr.free_symbols)
+        return expr is not None and not any(str(s) in variables for s in expr.free_symbols)
     except AttributeError:
         return False
 
@@ -168,11 +170,13 @@ def rank(
         raise ValueError(f"n={n} but the fits have n={ns.pop()}")
     if len({f.space for f in fits}) > 1 or len({f.weighted for f in fits}) > 1:
         raise ValueError("fits in different spaces or with different weighting cannot be ranked together")
-    bases = {(getattr(f, "likelihood", "gaussian"), bool(f.weighted and f.absolute_sigma),
-              tuple(getattr(f, "variables", ("x",)))) for f in fits}
+    bases = {(getattr(f, "likelihood", "gaussian"), bool(f.weighted and f.absolute_sigma)) for f in fits}
     if len(bases) > 1:
-        raise ValueError("fits with different likelihoods, variables or error models (absolute vs "
-                         "relative sigma) cannot be ranked together")
+        raise ValueError("fits with different likelihoods or error models (absolute vs relative sigma) "
+                         "cannot be ranked together")
+    n_obs = {getattr(f, "n_obs", 0) or f.n for f in fits}
+    if len(n_obs) > 1:
+        raise ValueError(f"fits of different data cannot be ranked together (observations = {sorted(n_obs)})")
     c = _overdispersion(fits)
 
     entries: List[RankEntry] = []
@@ -180,7 +184,7 @@ def rank(
         r2 = f.r2_fit if _finite(f.r2_fit) else None
         score = f.bic
         if c > 1.0 and _finite(f.bic):
-            score = bic_from(f.neg2loglik / c, f.n_obs or f.n, f.n_constants)
+            score = bic_from(f.neg2loglik / c, f.n_obs or f.n, getattr(f, "n_fitted", f.n_constants))
         entry = RankEntry(name=f.name, bic=score if _finite(score) else None, delta_bic=None,
                           n_constants=f.n_constants, r2=r2, eligible=False, reason="", fit=f)
         if not f.success:

@@ -32,6 +32,13 @@ Simulation. With simulations > 0, data are drawn from the truth with Gaussian
 errors (in log space when space="log"), both laws are fitted, and the share of
 draws in which the truth wins by at least `margin` (p_decisive) or the rival
 does (p_wrong) is reported. Seeded: the same call gives the same numbers.
+
+Counts. With likelihood="binomial" the design is the x values and the `trials`
+at each (seeds per setting), the Asimov data are the expected successes
+trials * p(x), and lambda is the rival's deviance there. lambda grows in
+proportion to the trials, and the BIC penalty with the log of their total, so
+seed_factor solves lambda f - (k_rival - k_truth) ln(f N) = margin. x may be a
+dict of arrays for a law of several variables (fss_logistic: rho and L).
 """
 from __future__ import annotations
 
@@ -40,11 +47,10 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
-import sympy
 
-from kepler.expression import X
-from kepler.fitting import Fit, fit
+from kepler.fitting import Fit, _columns, _gradient_fn, _variable_symbols, fit
 from kepler.laws import LAWS, Law, get_law
+from kepler.likelihoods import Binomial
 
 
 @dataclass
@@ -89,14 +95,14 @@ class Separation:
         }.items()}
 
 
-def _curve(truth: Union[Fit, str, Law], params: Optional[Mapping[str, float]], x: np.ndarray):
-    """The truth's name, number of constants and noise-free values at x."""
+def _curve(truth: Union[Fit, str, Law], params: Optional[Mapping[str, float]], x):
+    """The truth's name, number of constants, variables and noise-free values at x."""
     if isinstance(truth, Fit):
         if not truth.success:
             raise ValueError("the truth must be a successful fit")
         values = dict(zip(truth.param_names, truth.params))
         expr, symbols = truth.param_expression, truth.param_symbols
-        name = truth.name
+        name, variables = truth.name, tuple(truth.variables)
     else:
         law = truth if isinstance(truth, Law) else get_law(truth)
         if params is None:
@@ -104,62 +110,97 @@ def _curve(truth: Union[Fit, str, Law], params: Optional[Mapping[str, float]], x
         missing = [p for p in law.params if p not in params]
         if missing:
             raise ValueError(f"truth_params lacks {missing}")
-        expr, symbols = law.parametrized(X)
+        expr, symbols = law.parametrized()
         values = {p: float(params[p]) for p in law.params}
-        name = law.name
-    f = sympy.lambdify([X, *symbols], expr, "numpy")
-    with np.errstate(all="ignore"):
-        y = np.broadcast_to(np.asarray(f(x, *[values[str(s)] for s in symbols]), dtype=float),
-                            x.shape).copy()
+        name, variables = law.name, law.variables
+    n = len(next(iter(x.values()))) if isinstance(x, Mapping) else len(np.ravel(x))
+    cols = _columns(x, variables, n)
+    value, _ = _gradient_fn(expr, symbols, _variable_symbols(variables))
+    y = value(cols, [values[str(s)] for s in symbols])
     if not np.all(np.isfinite(y)):
         raise ValueError("the truth is not finite at every x")
     return name, len(symbols), y
 
 
-def _fit(law: Union[str, Law], x, y, sigma, space) -> Fit:
+def _fit(law: Union[str, Law], x, y, sigma, space, trials) -> Fit:
+    if trials is not None:
+        return fit(law, x, y, likelihood="binomial", trials=trials)
     return fit(law, x, y, sigma=sigma, space=space, absolute_sigma=True)
+
+
+def _seed_factor(lam: float, k_diff: int, n_obs: int, margin: float, counts: bool) -> Optional[float]:
+    """How many times the seeds must grow for lambda f + penalty to reach the margin."""
+    penalty = k_diff * math.log(max(n_obs, 2))
+    if lam <= 1e-9:
+        return None if penalty < margin else 0.0
+    factor = max(0.0, (margin - penalty) / lam)
+    if counts:
+        # The penalty counts every trial, so it moves with the factor too.
+        for _ in range(50):
+            factor = max(0.0, (margin - k_diff * math.log(max(n_obs * max(factor, 1e-9), 2))) / lam)
+    return factor
 
 
 def separation(
     truth: Union[Fit, str, Law],
     rival: Union[str, Law],
-    x: Sequence[float],
+    x: Union[Sequence[float], Mapping[str, Sequence[float]]],
     sigma: Optional[Union[float, Sequence[float]]] = None,
     relative: Optional[Union[float, Sequence[float]]] = None,
     space: str = "linear",
     *,
+    likelihood: str = "gaussian",
+    trials: Optional[Union[float, Sequence[float]]] = None,
     truth_params: Optional[Mapping[str, float]] = None,
     margin: float = 6.0,
     simulations: int = 0,
     seed: int = 0,
 ) -> Separation:
     """How well a design separates `truth` from `rival` (see the module docstring)."""
-    x_arr = np.asarray(x, dtype=float).ravel()
-    n = len(x_arr)
+    if isinstance(x, Mapping):
+        x_in = {k: np.asarray(v, dtype=float).ravel() for k, v in x.items()}
+        n = len(next(iter(x_in.values())))
+    else:
+        x_in = np.asarray(x, dtype=float).ravel()
+        n = len(x_in)
     if n < 2:
         raise ValueError("a design needs at least two x values")
-    if (sigma is None) == (relative is None):
+    counts = likelihood == "binomial"
+    if likelihood not in ("gaussian", "binomial"):
+        raise ValueError("separation handles gaussian and binomial designs")
+    if counts:
+        if sigma is not None or relative is not None or space != "linear":
+            raise ValueError("a binomial design is its trials; sigma, relative and space do not apply")
+        if trials is None:
+            raise ValueError("a binomial design needs the trials (seeds) at each x")
+        n_trials = np.broadcast_to(np.asarray(trials, dtype=float), (n,)).copy()
+    elif (sigma is None) == (relative is None):
         raise ValueError("give exactly one of sigma (y units) or relative (a fraction of y)")
-    name, k_truth, y0 = _curve(truth, truth_params, x_arr)
-    if space == "log" and np.any(y0 <= 0):
-        raise ValueError("a log-space design needs the truth > 0 at every x")
-    if sigma is not None:
-        s = np.broadcast_to(np.asarray(sigma, dtype=float), (n,)).copy()
+    name, k_truth, y0 = _curve(truth, truth_params, x_in)
+    if counts:
+        if np.any(y0 < 0) or np.any(y0 > 1):
+            raise ValueError("a binomial truth must be a probability at every x")
+        s = None
+        y_asimov = n_trials * y0
+        n_obs = Binomial(y_asimov, n_trials).n_obs
     else:
-        s = np.broadcast_to(np.asarray(relative, dtype=float), (n,)) * np.abs(y0)
-    if not np.all(np.isfinite(s)) or np.any(s <= 0):
-        raise ValueError("every standard error must be positive and finite")
+        if space == "log" and np.any(y0 <= 0):
+            raise ValueError("a log-space design needs the truth > 0 at every x")
+        if sigma is not None:
+            s = np.broadcast_to(np.asarray(sigma, dtype=float), (n,)).copy()
+        else:
+            s = np.broadcast_to(np.asarray(relative, dtype=float), (n,)) * np.abs(y0)
+        if not np.all(np.isfinite(s)) or np.any(s <= 0):
+            raise ValueError("every standard error must be positive and finite")
+        y_asimov, n_obs, n_trials = y0, n, None
 
     rival_law = rival if isinstance(rival, Law) else get_law(rival)
     k_rival = len(rival_law.params)
-    penalty = (k_rival - k_truth) * math.log(n)
-    asimov = _fit(rival_law, x_arr, y0, s, space)
-    lam = float(asimov.rss) if asimov.success else math.inf
+    penalty = (k_rival - k_truth) * math.log(max(n_obs, 2))
+    asimov = _fit(rival_law, x_in, y_asimov, s, space, n_trials)
+    lam = float(asimov.rss) if asimov.success and math.isfinite(asimov.rss) else math.inf
     expected = lam + penalty
-    if lam <= 1e-9:
-        factor = None if penalty < margin else 0.0
-    else:
-        factor = max(0.0, (margin - penalty) / lam)
+    factor = _seed_factor(lam, k_rival - k_truth, n_obs, margin, counts)
 
     result = Separation(name, rival_law.name, n, space, lam, expected, margin, factor)
     if simulations > 0:
@@ -169,13 +210,15 @@ def separation(
             raise ValueError("simulation needs the truth to be a named law")
         deltas = []
         for _ in range(simulations):
-            if space == "log":
+            if counts:
+                y = rng.binomial(n_trials.astype(np.int64), y0).astype(float)
+            elif space == "log":
                 rel = s / np.abs(y0)
                 y = y0 * np.exp(rel * rng.standard_normal(n))
             else:
                 y = y0 + s * rng.standard_normal(n)
-            a = _fit(truth_law, x_arr, y, s, space)
-            b = _fit(rival_law, x_arr, y, s, space)
+            a = _fit(truth_law, x_in, y, s, space, n_trials)
+            b = _fit(rival_law, x_in, y, s, space, n_trials)
             if a.success and b.success:
                 deltas.append(b.bic - a.bic)
         if deltas:

@@ -22,6 +22,19 @@ the right minimum with 10 to 20 points.
     logistic          c/(1 + exp(-k*(x - x0)))     survival against density
     shifted_power     c + a*x**b                   x > 0; finite-size scaling,
                                                    rho*(L) = rho_inf + a L^-b
+
+Probabilities, fitted with likelihood="binomial" (survived out of seeds):
+
+    logistic_p        1/(1 + exp(-k*(x - x0)))     a step from 0 to 1 at x0
+    window            logistic up at x1 times      too sparse to start, too dense
+                      logistic down at x2          to last
+
+And against density rho and torus size L at once (x is a dict of arrays):
+
+    crossover         1/(1 + exp(-w*(rho - r)))                the same at every size
+    sharpening        1/(1 + exp(-w*L**s*(rho - r)))           sharpens, fixed threshold
+    fss_logistic      1/(1 + exp(-w*L**s*(rho - r - a*L**-b))) and the threshold drifts:
+                                                               rho*(L) = r + a L^-b
 """
 from __future__ import annotations
 
@@ -127,42 +140,141 @@ def _guess_shifted_power(x, y):
     return [c, a, b]
 
 
+def _crossings(x: np.ndarray, y: np.ndarray, level: float) -> List[float]:
+    """Where y, sorted by x, crosses `level` (linear interpolation)."""
+    order = np.argsort(x)
+    xs, ys = x[order], y[order]
+    out = []
+    for i in range(len(xs) - 1):
+        a, b = ys[i] - level, ys[i + 1] - level
+        if a == 0:
+            out.append(float(xs[i]))
+        elif a * b < 0:
+            out.append(float(xs[i] + (xs[i + 1] - xs[i]) * a / (a - b)))
+    return out
+
+
+def _guess_logistic_p(x, y):
+    span = float(np.ptp(x)) or 1.0
+    trend = np.sign(np.corrcoef(x, y)[0, 1]) if len(x) > 1 and np.ptp(y) > 0 else 1.0
+    found = _crossings(x, y, 0.5)
+    x0 = found[0] if found else float(np.median(x))
+    return [(trend or 1.0) * 8.0 / span, x0]
+
+
+def _guess_window(x, y):
+    span = float(np.ptp(x)) or 1.0
+    order = np.argsort(x)
+    xs, ys = x[order], y[order]
+    peak = int(np.argmax(ys))
+    half = max(float(ys[peak]) / 2.0, 1e-3)
+    left = _crossings(xs[: peak + 1], ys[: peak + 1], half)
+    right = _crossings(xs[peak:], ys[peak:], half)
+    x1 = left[-1] if left else float(xs[0] + span / 4)
+    x2 = right[0] if right else float(xs[-1] - span / 4)
+    if x2 <= x1:
+        x1, x2 = float(xs[0] + span / 4), float(xs[-1] - span / 4)
+    k = 8.0 / span
+    return [k, x1, k, x2]
+
+
+def _guess_fss_logistic(v, y):
+    """Per size, where the probability crosses 1/2; then rho*(L) = r + a L^-1 through them."""
+    rho, L = np.asarray(v["rho"], dtype=float), np.asarray(v["L"], dtype=float)
+    sizes = np.unique(L)
+    centres, slopes = [], []
+    for size in sizes:
+        m = L == size
+        found = _crossings(rho[m], y[m], 0.5)
+        if found:
+            centres.append((size, found[0]))
+        span = float(np.ptp(rho[m])) or 1.0
+        slopes.append(8.0 / span)
+    trend = np.sign(np.corrcoef(rho, y)[0, 1]) if np.ptp(y) > 0 and np.ptp(rho) > 0 else 1.0
+    if len(centres) >= 2:
+        sz = np.array([c[0] for c in centres])
+        cx = np.array([c[1] for c in centres])
+        design = np.column_stack([np.ones_like(sz), 1.0 / sz])
+        (r, a), *_ = np.linalg.lstsq(design, cx, rcond=None)
+    elif centres:
+        r, a = centres[0][1], 0.1
+    else:
+        r, a = float(np.median(rho)), 0.1
+    s = 0.5
+    w = (trend or 1.0) * float(np.median(slopes)) / float(np.max(L)) ** s
+    return [r, a, 1.0, w, s]
+
+
+def _guess_crossover(v, y):
+    r, a, _, w, s = _guess_fss_logistic(v, y)
+    typical = float(np.median(np.asarray(v["L"], dtype=float)))
+    return [r + a / typical, w * typical ** s]
+
+
+def _guess_sharpening(v, y):
+    r, a, _, w, s = _guess_fss_logistic(v, y)
+    typical = float(np.median(np.asarray(v["L"], dtype=float)))
+    return [r + a / typical, w, s]
+
+
 @functools.lru_cache(maxsize=256)
-def _parse_formula(formula: str, params: Tuple[str, ...], x_symbol: sympy.Symbol):
+def _parse_formula(formula: str, params: Tuple[str, ...], variables: Tuple[str, ...],
+                   x_symbol: sympy.Symbol):
     symbols = tuple(sympy.Symbol(p) for p in params)
     local: Dict[str, sympy.Basic] = {p: s for p, s in zip(params, symbols)}
-    local["x"] = x_symbol
+    for v in variables:
+        local[v] = x_symbol if variables == ("x",) else sympy.Symbol(v)
     return sympy.sympify(formula, locals=local), symbols
 
 
 @dataclass(frozen=True)
 class Law:
-    """A named law shape: `formula` in x and `params`, a starting guess, and its domain."""
+    """A named law shape: `formula` in its `variables` (x unless named) and `params`, a
+    starting guess, and its domain."""
 
     name: str
     formula: str
     params: Tuple[str, ...]
     description: str
-    guess: Callable[[np.ndarray, np.ndarray], Sequence[float]]
+    guess: Callable[..., Sequence[float]]
     positive_x: bool = False
+    variables: Tuple[str, ...] = ("x",)
+    positive_vars: Tuple[str, ...] = ()
 
     def parametrized(self, x_symbol: sympy.Symbol = X) -> Tuple[sympy.Expr, List[sympy.Symbol]]:
-        """The formula as a SymPy expression in `x_symbol` and its parameter symbols."""
-        expr, symbols = _parse_formula(self.formula, self.params, x_symbol)
+        """The formula as a SymPy expression and its parameter symbols. A one-variable law is
+        written in `x_symbol`; a law of several variables in symbols named after them."""
+        expr, symbols = _parse_formula(self.formula, self.params, self.variables, x_symbol)
         return expr, list(symbols)
 
-    def domain_problem(self, x: np.ndarray) -> Optional[str]:
-        """Why this law cannot be fitted at these x values, or None."""
+    def variable_symbols(self, x_symbol: sympy.Symbol = X) -> Tuple[sympy.Symbol, ...]:
+        if self.variables == ("x",):
+            return (x_symbol,)
+        return tuple(sympy.Symbol(v) for v in self.variables)
+
+    def domain_problem(self, x) -> Optional[str]:
+        """Why this law cannot be fitted at these x values (an array, or a dict of arrays for a
+        law of several variables), or None."""
+        if isinstance(x, dict):
+            for v in self.positive_vars:
+                if np.any(np.asarray(x[v]) <= 0):
+                    return f"{self.name} needs every {v} > 0"
+            return None
         if self.positive_x and np.any(np.asarray(x) <= 0):
             return f"{self.name} needs every x > 0"
         return None
 
-    def initial(self, x: Optional[np.ndarray] = None, y: Optional[np.ndarray] = None) -> List[float]:
+    def initial(self, x=None, y: Optional[np.ndarray] = None) -> List[float]:
         """Starting constants guessed from the data, each finite and non-zero. Without data,
-        all ones."""
+        all ones. `x` is an array, or a dict of arrays for a law of several variables."""
         if x is None or y is None:
             return [1.0] * len(self.params)
-        x = np.asarray(x, dtype=np.float64)
+        if isinstance(x, dict):
+            x = {k: np.asarray(v, dtype=np.float64) for k, v in x.items()}
+        elif self.variables != ("x",):
+            raise ValueError(f"{self.name}'s variables are {', '.join(self.variables)}: pass x as a dict")
+        else:
+            x = np.asarray(x, dtype=np.float64)
         y = np.asarray(y, dtype=np.float64)
         try:
             with np.errstate(all="ignore"):
@@ -201,10 +313,31 @@ LAWS: Dict[str, Law] = {law.name: law for law in (
         "logistic step of height c at x0 (a survival curve)", _guess_logistic),
     Law("shifted_power", "c + a*x**b", ("c", "a", "b"),
         "power-law approach to a limit (finite-size scaling)", _guess_shifted_power, positive_x=True),
+    # Probabilities (fit with likelihood="binomial").
+    Law("logistic_p", "1/(1 + exp(-k*(x - x0)))", ("k", "x0"),
+        "a probability stepping from 0 to 1 (k > 0) or 1 to 0 (k < 0) at x0", _guess_logistic_p),
+    Law("window", "1/((1 + exp(-k1*(x - x1)))*(1 + exp(k2*(x - x2))))", ("k1", "x1", "k2", "x2"),
+        "a probability that rises at x1 and falls at x2: too sparse to start, too dense to last",
+        _guess_window),
+    # Two variables: survival over density rho and torus size L, one fit for every size. From
+    # no transition (the same curve at every size) to a threshold that sharpens and drifts.
+    Law("crossover", "1/(1 + exp(-w*(rho - r)))", ("r", "w"),
+        "the same step at every size: a crossover, not a transition",
+        _guess_crossover, variables=("rho", "L"), positive_vars=("L",)),
+    Law("sharpening", "1/(1 + exp(-w*L**s*(rho - r)))", ("r", "w", "s"),
+        "a step at a fixed threshold r that sharpens as L^s",
+        _guess_sharpening, variables=("rho", "L"), positive_vars=("L",)),
+    Law("fss_logistic", "1/(1 + exp(-w*L**s*(rho - r - a*L**(-b))))", ("r", "a", "b", "w", "s"),
+        "finite-size scaling of a threshold: rho*(L) = r + a L^-b, sharpening as L^s",
+        _guess_fss_logistic, variables=("rho", "L"), positive_vars=("L",)),
 )}
 
 # The six shapes the settling-time prototype compared (2026-10-16).
 GROWTH_LAWS: Tuple[str, ...] = ("constant", "logarithmic", "linear", "power", "exponential", "exponential_area")
+# Shapes for a probability against one setting.
+PROBABILITY_LAWS: Tuple[str, ...] = ("constant", "logistic_p", "window")
+# A probability against density rho and size L: is there a transition, and where is it at L -> oo?
+FSS_LAWS: Tuple[str, ...] = ("crossover", "sharpening", "fss_logistic")
 
 
 def get_law(name: str) -> Law:

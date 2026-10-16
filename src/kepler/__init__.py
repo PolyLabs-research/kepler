@@ -13,18 +13,20 @@ transformers (galileo_minimal/, the `models` extra) and the MCP server (the
 """
 from kepler.design import Separation, separation
 from kepler.fitting import Fit, fit, information, parse_skeleton, predict, predict_covariance
-from kepler.laws import GROWTH_LAWS, LAWS, Law, get_law
+from kepler.laws import FSS_LAWS, GROWTH_LAWS, LAWS, PROBABILITY_LAWS, Law, get_law
 from kepler.ranking import MIN_R2, OCCAM_WINDOW, RankEntry, Ranking, bic, occam_order, rank
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "FSS_LAWS",
     "Fit",
     "GROWTH_LAWS",
     "LAWS",
     "Law",
     "MIN_R2",
     "OCCAM_WINDOW",
+    "PROBABILITY_LAWS",
     "RankEntry",
     "Ranking",
     "Separation",

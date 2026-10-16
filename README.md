@@ -29,7 +29,7 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
 
 - `fit(skeleton, x, y, sigma=None, space="linear")` takes a law name from `kepler.LAWS`
   (constant, logarithmic, linear, power, exponential, exponential_area, logistic,
-  shifted_power), a `Law`, or an equation whose Float literals are the constants
+  shifted_power, and the probability laws below), a `Law`, or an equation whose Float literals are the constants
   (`"20.0*x**0.5"`). A zero literal is refused: SymPy drops `0.0 + x` to `x`.
 - `rank(fits, n, occam_window=6.0, min_r2=0.5)` is the rule `GalileoTools.discover_best` uses,
   now shared code. It refuses to compare fits of different data, weights or spaces.
@@ -48,6 +48,19 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   run whether a design can tell two laws apart: the expected BIC difference, the factor by
   which the seeds must grow to reach a margin, and (with `simulations=N`) the chance of a
   decisive right or wrong verdict.
+
+- Counts are fitted by maximum likelihood, not least squares on fractions:
+  `fit("logistic_p", rho, survived, likelihood="binomial", trials=seeds)`. Its -2 ln L is
+  exact, its BIC counts every seed, `rss` is the deviance, and bands stay inside (0, 1).
+  `likelihood="poisson"` takes counts over an `exposure`. `PROBABILITY_LAWS` are a constant,
+  a step (`logistic_p`) and a rise then fall (`window`: too sparse to start, too dense to last).
+  Perfectly separated outcomes (every row all-or-nothing) are flagged, not trusted.
+- Laws of several variables take `x` as a dict: `fit("fss_logistic", {"rho": rho, "L": L},
+  survived, likelihood="binomial", trials=seeds)` fits one surface over density and size,
+  rho*(L) = r + a L^-b with a step that sharpens as L^s, so r is the threshold at infinite
+  size with an error bar. `FSS_LAWS` rank it against a fixed threshold (`sharpening`) and
+  against no transition at all (`crossover`, the same curve at every size).
+- `separation(..., likelihood="binomial", trials=20)` sizes a count design the same way.
 
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
