@@ -15,7 +15,11 @@ The fit is refine.refine_expression / refine_parametrized (scipy's
 least_squares). Standard errors come from the Jacobian at the solution, as
 scipy's curve_fit computes them: cov = s^2 (J^T J)^-1 with J the Jacobian of
 the weighted residuals and s^2 = RSS / (n - k), the reduced chi-square, unless
-absolute_sigma=True says the sigmas are absolute (then s^2 = 1).
+absolute_sigma=True says the sigmas are absolute (then s^2 = 1). With inflate=True as well,
+s^2 = max(1, RSS / (n - k)): scatter beyond the stated errors widens the error bars (the Birge
+ratio), scatter within them never narrows them. That suits sigmas that are real error
+estimates on few points, where the reduced chi-square itself is noisy (with 5 degrees of
+freedom it falls below 0.2 one time in 30). `Fit.error_scale` is the s^2 used.
 
 The band from predict() is the uncertainty of the fitted curve itself, from
 the constants' covariance (the delta method), with a Student-t quantile on
@@ -82,6 +86,7 @@ class Fit:
     message: str
     param_expression: sympy.Expr = field(repr=False)
     param_symbols: Tuple[sympy.Symbol, ...] = field(repr=False)
+    error_scale: float = float("nan")  # the s^2 the covariance was scaled by
 
     @property
     def n_constants(self) -> int:
@@ -120,6 +125,7 @@ class Fit:
             "space": self.space,
             "weighted": self.weighted,
             "absolute_sigma": self.absolute_sigma,
+            "error_scale": self.error_scale,
             "ill_conditioned": self.ill_conditioned,
             "success": self.success,
             "message": self.message,
@@ -247,6 +253,7 @@ def fit(
     space: str = "linear",
     *,
     absolute_sigma: bool = False,
+    inflate: bool = False,
     max_nfev: int = 2000,
 ) -> Fit:
     """
@@ -260,6 +267,8 @@ def fit(
         space: "linear", or "log" to fit log f(x) to log y (every y must be > 0).
         absolute_sigma: treat sigma as absolute rather than relative (covariance not scaled
             by the reduced chi-square).
+        inflate: with absolute_sigma, scale the covariance up by the reduced chi-square when it
+            exceeds 1 (see the module docstring).
 
     A law whose domain excludes the data (log x at x <= 0) gives a Fit with success=False
     and the reason in `message`, so it can be ranked as ineligible. Malformed input (lengths
@@ -324,7 +333,7 @@ def fit(
     jac = jac * weights[:, None]
     dof = n - k
     if weighted and absolute_sigma:
-        s2 = 1.0
+        s2 = max(1.0, rss / dof) if inflate and dof > 0 else 1.0
     else:
         s2 = rss / dof if dof > 0 else math.inf
     cov, singular = _covariance(jac, s2)
@@ -337,7 +346,7 @@ def fit(
         bic=_bic(rss, n, k), space=space, weighted=weighted, absolute_sigma=absolute_sigma,
         ill_conditioned=bool(res.ill_conditioned or singular), success=True,
         message=res.message + ("; constants not identifiable from these data" if singular else ""),
-        param_expression=param_expr, param_symbols=tuple(symbols),
+        param_expression=param_expr, param_symbols=tuple(symbols), error_scale=float(s2),
     )
 
 

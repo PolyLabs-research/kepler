@@ -175,3 +175,20 @@ def test_predict_covariance_matches_the_band(space):
     # Neighbouring predictions share the constants: strongly correlated.
     corr = cov[0, 1] / np.sqrt(cov[0, 0] * cov[1, 1])
     assert corr > 0.9
+
+
+def test_inflate_never_narrows_the_stated_errors():
+    y, sigma = power_data(seed=10, noise=0.0)  # exact data: the reduced chi-square is ~0
+    scaled = fit("power", L, y, sigma=0.03 * y)
+    absolute = fit("power", L, y, sigma=0.03 * y, absolute_sigma=True)
+    inflated = fit("power", L, y, sigma=0.03 * y, absolute_sigma=True, inflate=True)
+    assert scaled.error("b") < 1e-6 * absolute.error("b")
+    assert inflated.error("b") == pytest.approx(absolute.error("b"))
+    assert inflated.error_scale == 1.0
+
+    rng = np.random.default_rng(12)
+    noisy = 27.0 * L ** 0.35 * (1 + 0.09 * rng.standard_normal(len(L)))  # 3x the stated error
+    absolute = fit("power", L, noisy, sigma=0.03 * noisy, absolute_sigma=True)
+    inflated = fit("power", L, noisy, sigma=0.03 * noisy, absolute_sigma=True, inflate=True)
+    assert inflated.error_scale > 1.0
+    assert inflated.error("b") == pytest.approx(absolute.error("b") * np.sqrt(inflated.error_scale))
