@@ -81,7 +81,8 @@ from refine import (
     refine_ode,
     rmse as _rmse,
 )
-import math
+# The refine/expression/normalize shims above have put the kepler package on the path.
+from kepler.ranking import MIN_R2, OCCAM_WINDOW, bic as _bic, occam_order
 
 # Running a specialist needs torch and a trained checkpoint.
 _DISCOVERY_AVAILABLE = False
@@ -597,10 +598,11 @@ class GalileoTools:
 
     DETERMINISTIC_MODELS = ("polynomial", "transcendental", "linear_ode")
     STOCHASTIC_MODELS = ("ar",)
-    MIN_DETERMINISTIC_R2 = 0.5
+    MIN_DETERMINISTIC_R2 = MIN_R2
     # Occam window: a richer structure must beat a simpler one by more than this
     # many BIC points to be preferred (Kass & Raftery: 2-6 is "positive", >6 "strong").
-    OCCAM_WINDOW = 6.0
+    # The rule itself is kepler.ranking's, shared with kepler.rank().
+    OCCAM_WINDOW = OCCAM_WINDOW
     # Resampling for the model's eyes: the specialists were trained on evenly
     # spaced samples, so unevenly spaced x is resampled onto an even grid of at
     # least this many points with a shape-preserving interpolant before feature
@@ -695,7 +697,6 @@ class GalileoTools:
         Returns (entries, best_row, best_entry, note): every candidate's score
         entry, the winning result row and its entry, and the reason.
         """
-        ln_n = math.log(max(n, 2))
         scored = []
         for r in rows:
             fit = r.get("fit") or {}
@@ -721,8 +722,7 @@ class GalileoTools:
             elif rmse_v is None or not np.isfinite(rmse_v):
                 entry["reason"] = r.get("postprocess_error") or "no fit"
             else:
-                rss = max(n * float(rmse_v) ** 2, 1e-300)
-                entry["bic"] = float(n * math.log(rss / n) + entry["n_constants"] * ln_n)
+                entry["bic"] = _bic(n * float(rmse_v) ** 2, n, entry["n_constants"])
                 r2_v = fit.get("r2")
                 if entry["ill_conditioned"]:
                     entry["reason"] = "ill-conditioned fit (cancelling terms)"
@@ -744,8 +744,7 @@ class GalileoTools:
         if det:
             # Occam window: simplest candidate among those close to the best BIC.
             floor = det[0][0]["bic"]
-            window = [er for er in det if er[0]["bic"] - floor <= self.OCCAM_WINDOW]
-            det = sorted(window, key=lambda er: (er[0]["n_constants"], er[0]["bic"])) + [er for er in det if er not in window]
+            det = occam_order(det, self.OCCAM_WINDOW, lambda er: er[0]["bic"], lambda er: er[0]["n_constants"])
         if det and (det[0][0]["r2"] or 0.0) >= self.MIN_DETERMINISTIC_R2:
             e = det[0][0]
             best = det[0][1]

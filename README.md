@@ -2,6 +2,45 @@
 
 Lightweight symbolic equation discovery using transformer models. Trains specialist models to predict mathematical formulas from numerical data.
 
+## The `kepler` library
+
+The classical half of Kepler (expression parsing, normalisation, least-squares refinement and
+the BIC ranking rule) is an installable package in `src/kepler`, with a public fit, rank and
+predict API. It needs numpy, scipy and sympy only; the transformers and the MCP server are
+optional extras.
+
+```bash
+pip install -e .              # the library
+pip install -e ".[models]"    # + torch, for galileo_minimal/train.py and friends
+pip install -e ".[mcp]"       # + mcp, for galileo_minimal/mcp_server.py
+pytest                        # the library's tests (tests/); galileo_minimal has its own
+```
+
+```python
+from kepler import fit, rank, predict, LAWS
+
+# Constants with standard errors; sigma weights each point, space="log" fits log y.
+fits = [fit(name, L, T, sigma=T_err) for name in ("logarithmic", "power", "exponential")]
+ranking = rank(fits)                      # BIC, 6-point Occam window, eligibility reasons
+best = ranking.best.fit                   # None when no law fits: that is an answer too
+best.params, best.stderr                  # e.g. (27.2, 0.350), (0.98, 0.013)
+T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
+```
+
+- `fit(skeleton, x, y, sigma=None, space="linear")` takes a law name from `kepler.LAWS`
+  (constant, logarithmic, linear, power, exponential, exponential_area, logistic,
+  shifted_power), a `Law`, or an equation whose Float literals are the constants
+  (`"20.0*x**0.5"`). A zero literal is refused: SymPy drops `0.0 + x` to `x`.
+- `rank(fits, n, occam_window=6.0, min_r2=0.5)` is the rule `GalileoTools.discover_best` uses,
+  now shared code. It refuses to compare fits of different data, weights or spaces.
+- `predict(fit, x, level=0.95)` returns the curve and its confidence band. A held-out
+  measurement's own error is the caller's to add.
+- The MCP server gains `fit_skeleton`: a language model proposes an equation and gets its
+  constants fitted. `verify_equation` never refits.
+
+`galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
+the package modules, so the scripts and tests there run unchanged from inside that folder.
+
 ## Quick Start
 
 ```bash
