@@ -160,10 +160,21 @@ loop:
   and on the data up to 200 keeps the right law on every lattice. That shows capability, in
   hindsight; simplicity alone would have picked the rule-90 law on every lattice, wrongly for
   three of them.
+- **A blind test.** `find_integer_laws` proposed period laws for 42 linear rules built from
+  neighbour shells on three lattices, 38 of them unstudied. It worked from tori up to 60, and
+  every law it listed, tied rivals included, was registered. Checked exactly at 1,930 new
+  (rule, size) pairs up to n = 160:
+  - every one of the 34 rules that got a law kept one;
+  - its first-ranked law held for 19 rules, and a registered rival for the other 15;
+  - its laws include `P150(n)` for two square rules and `2*P150(n)` for a hexagonal one.
+
+  Ranking still prefers the shorter rule-90 law. Listing the rivals is what made the test
+  decisive.
 
 The write-ups, with what was known before and what was not, are lattice-lab's
 [docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md),
-[docs/parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md)
+[docs/parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md),
+[docs/linear-atlas.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/linear-atlas.md)
 and [docs/settling-time.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/settling-time.md).
 
 ## Galileo Trainer
