@@ -117,7 +117,8 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   bookkeeping identities do not explain.
 - Is a constant a known number? `identify(0.3341, 0.0053)` lists closed forms (p/q, p/q times
   pi, e, sqrt 2, ..., square roots) and named constants (`KNOWN`: 2D percolation and Ising
-  exponents, directed percolation, KPZ, coarsening, percolation thresholds) within the error
+  exponents, directed percolation, KPZ, coarsening, percolation thresholds, and the Gumbel law's
+  shape constants for extreme values) within the error
   bar, simplest first, each with `p_chance`, the chance that a match that simple and that close
   would turn up anyway at that error bar. `identify_fit(fit)` does every constant of a fit.
 
@@ -139,16 +140,22 @@ loop:
 - **A conserved quantity** from `find_invariants`: under the XOR rule, cumulative births are
   always even. Found in the data, it then had a short proof.
 - **A settling-time law** chosen by `rank` with a held-out test: on the hexagonal lattice, B2/S34
-  soups settle in time that grows with the logarithm of the torus size, not with a power of it
-  (one answer, to replicate with more seeds or larger tori).
+  soups settle in time that grows with the logarithm of the torus size, not with a power of it.
+  A registered replication on tori up to 1024 confirmed it and rejected the power law. So did a
+  registered test of eight random rules on four lattice types. Across those eight, the
+  fluctuations share one shape and one ratio of spread to growth, both consistent with the
+  Gumbel law for the largest of many light-tailed times. The Gumbel constants were added to
+  `KNOWN` for that test; at its error bars, `identify` finds them among hundreds of equally
+  good matches, so it cannot yet name the class unaided.
 - **A gap.** For odd parts of at least 5, the hexagon's correct period is 2 * 2^v(n) times rule
   90's period on the odd part: two hexagon generations are three passes of the 1D rule 90. `find_integer_laws` has no feature
   for another automaton's period, so it could not have proposed that law. The refutation and
   the proof came from lattice-lab's registered test and reasoning added afterwards.
 
 The write-ups, with what was known before and what was not, are lattice-lab's
-[docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md)
-and [docs/parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md).
+[docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md),
+[docs/parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md)
+and [docs/settling-time.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/settling-time.md).
 
 ## Galileo Trainer
 
