@@ -45,3 +45,13 @@ def test_every_constant_of_a_fit():
 def test_the_known_table_is_sane():
     for name, (value, error) in KNOWN.items():
         assert value > 0 and error >= 0, name
+
+
+def test_identify_names_the_gumbel_shape_constants():
+    """The largest of many light-tailed times is Gumbel: its quantile skewness and its
+    interquartile range per unit slope in ln L (in 2D) are in the table, and are found."""
+    kelly = identify(0.2215, 0.004)
+    assert any(m.named and m.expression.startswith("Gumbel Kelly") for m in kelly)
+    ratio = identify(0.786, 0.01)
+    assert any(m.named and m.expression.startswith("2D Gumbel") for m in ratio)
+    assert KNOWN["Gumbel standard deviation = pi/sqrt(6)"][0] == pytest.approx(1.28254983)

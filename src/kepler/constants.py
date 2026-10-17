@@ -13,8 +13,10 @@ Candidates:
                    irrational and 1 for a division or a root.
     named          KNOWN: critical exponents and thresholds of the universality classes a
                    lattice rule might belong to (2D percolation, 2D Ising, directed percolation
-                   in 1+1 and 2+1 dimensions, KPZ, coarsening, mean field) and percolation
-                   thresholds of the square, triangular and honeycomb lattices. Numerical ones
+                   in 1+1 and 2+1 dimensions, KPZ, coarsening, mean field), percolation
+                   thresholds of the square, triangular and honeycomb lattices, and the shape
+                   constants of the Gumbel law that the largest of many light-tailed times
+                   follows (extreme-value statistics). Numerical ones
                    carry their own uncertainty, which widens the window. Complexity: log2 of
                    the table's size, plus 2.
 
@@ -88,6 +90,20 @@ KNOWN: Dict[str, Tuple[float, float]] = {
     "bond percolation threshold, square = 1/2": (0.5, 0.0),
     "bond percolation threshold, triangular = 2 sin(pi/18)": (2 * math.sin(math.pi / 18), 0.0),
     "bond percolation threshold, honeycomb = 1 - 2 sin(pi/18)": (1 - 2 * math.sin(math.pi / 18), 0.0),
+    # Extreme value, Gumbel class: the largest of many independent times with exponential (or
+    # lighter) tails. Per unit scale, and shape constants that do not depend on the scale.
+    "Gumbel mean = Euler-Mascheroni gamma": (0.5772156649015329, 0.0),
+    "Gumbel median = -ln ln 2": (-math.log(math.log(2)), 0.0),
+    "Gumbel standard deviation = pi/sqrt(6)": (math.pi / math.sqrt(6), 0.0),
+    "Gumbel skewness = 12 sqrt(6) zeta(3)/pi^3": (1.1395470994046488, 0.0),
+    "Gumbel interquartile range = ln(ln 4 / ln(4/3))": (math.log(math.log(4) / math.log(4 / 3)), 0.0),
+    "Gumbel Kelly skewness (Q90 + Q10 - 2 Q50)/(Q90 - Q10)": (
+        (math.log(math.log(2) ** 2 / (math.log(10) * math.log(10 / 9))))
+        / math.log(math.log(10) / math.log(10 / 9)),
+        0.0,
+    ),
+    # The largest of ~L^2 such times in 2D: location tau ln(L^2), so per unit of its slope in ln L
+    "2D Gumbel interquartile range / (dT/d ln L)": (math.log(math.log(4) / math.log(4 / 3)) / 2, 0.0),
 }
 
 
