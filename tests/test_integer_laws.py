@@ -66,8 +66,14 @@ def test_the_suborder_of_two():
     n = [m for m in range(3, 31) if m & (m - 1)]  # powers of 2 aside
     odd = [m // (m & -m) for m in n]
     y = [(m & -m) * (2 ** sord(o) - 1) for m, o in zip(n, odd)]
-    law = best(n, y)
-    assert law.expression == "2^v(n)*(2^sord(n) - 1)" and law.confirmed_by == len(n) - 1
+    laws = find_integer_laws(n, y)
+    # These are rule 90's own periods, so the simplest law names them so; the formula is the
+    # rival that agrees with it (powers of 2 aside: rule 90 dies there) up to 36 and parts at
+    # 37, where rule 90 falls short of it.
+    assert laws[0].expression == "P90(n)" and laws[0].confirmed_by == len(n) - 1
+    formula = next(law for law in laws if law.expression == "2^v(n)*(2^sord(n) - 1)")
+    assert formula.confirmed_by == len(n) - 1
+    assert disagreement([laws[0], formula], 33) == 37
 
 
 def pow_order(m):
@@ -109,3 +115,33 @@ def test_rational_values_and_bad_input():
     assert law(5) == Fraction(5, 2) and law.unknowns == 1
     with pytest.raises(ValueError, match="appear once"):
         find_integer_laws([1, 1, 2], [1, 1, 2])
+
+
+def test_periods_of_the_one_dimensional_linear_rules():
+    """Exact, against a direct simulation from a single cell on every ring up to 24 cells."""
+    from kepler.integer_laws import rule_period
+
+    def simulate(rule, m):
+        taps = {60: (0, -1), 90: (-1, 1), 150: (-1, 0, 1)}[rule]
+        state, seen, t = tuple(int(i == 0) for i in range(m)), {}, 0
+        while state not in seen:
+            seen[state] = t
+            state = tuple(sum(state[(i + k) % m] for k in taps) % 2 for i in range(m))
+            t += 1
+        return t - seen[state]
+
+    for rule in (60, 90, 150):
+        assert [rule_period(rule, m) for m in range(1, 25)] == [simulate(rule, m) for m in range(1, 25)]
+    assert rule_period(90, 37) == 87381  # a third of 2^18 - 1 (Martin, Odlyzko and Wolfram)
+    assert rule_period(90, 64) == 1  # rule 90 dies on a ring of 2^k cells
+
+
+def test_a_lattice_rule_tied_to_a_one_dimensional_one():
+    """Twice rule 90's period, on sizes where that differs from 2 * 2^v(n) * (2^sord(n) - 1):
+    found, and the formula is not."""
+    from kepler.integer_laws import rule_period
+
+    n = [m for m in range(10, 121, 2) if (m // (m & -m)) >= 5]
+    laws = find_integer_laws(n, [2 * rule_period(90, m) for m in n])
+    assert laws[0].expression == "2*P90(n)"
+    assert not any(law.expression == "2*2^v(n)*(2^sord(n) - 1)" for law in laws)

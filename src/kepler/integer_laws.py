@@ -19,12 +19,16 @@ and checked against all the others:
                       power of 2 in n), ord (the multiplicative order of 2 modulo the odd
                       part), sord (its suborder, the least j with 2^j = +-1 modulo the odd
                       part), 2^ord - 1 and 2^sord - 1: the quantities periods of linear (XOR)
-                      rules on tori are built from (Martin, Odlyzko and Wolfram 1984)
+                      rules on tori are built from (Martin, Odlyzko and Wolfram 1984); and the
+                      periods of the one-dimensional linear rules (rules 60, 90 and 150) on a
+                      ring of n cells and on a ring of odd(n) cells, for laws that tie a lattice
+                      rule to a 1D one
 
 Complexity orders the results: the number of unknowns, then their size in bits.
 """
 from __future__ import annotations
 
+import functools
 import itertools
 import math
 from dataclasses import dataclass, field
@@ -292,6 +296,85 @@ def _suborder_of_two(m: int) -> int:
     return k
 
 
+# --- periods of the one-dimensional linear (XOR) rules --------------------------------------------
+# The elementary rules that are linear over GF(2) (up to mirror images): rule 60 (a cell becomes
+# itself plus its left neighbour; 102 is its mirror), 90 (left plus right) and 150 (left, itself
+# and right). On a ring of m cells one is multiplication by its polynomial in GF(2)[z]/(z^m - 1),
+# and its period from a single cell, the longest from any start, is the eventual period of that
+# polynomial. Past a transient of at most 2^v(m) generations it divides 2^v(m) (2^ord - 1),
+# ord the order of 2 modulo the odd part of m: the exact period is found by dividing out the
+# primes of that bound, from the cyclotomic parts of 2^ord - 1.
+
+_RULE_TAPS = {60: (0, -1), 90: (-1, 1), 150: (-1, 0, 1)}
+
+
+def _ring_poly(rule: int, m: int) -> int:
+    poly = 0
+    for tap in _RULE_TAPS[rule]:
+        poly ^= 1 << (tap % m)
+    return poly
+
+
+def _ring_mul(a: int, b: int, m: int) -> int:
+    product = 0
+    while b:
+        low = b & -b
+        product ^= a << (low.bit_length() - 1)
+        b ^= low
+    mask = (1 << m) - 1
+    while product >> m:
+        product = (product & mask) ^ (product >> m)
+    return product
+
+
+def _ring_pow(a: int, e: int, m: int) -> int:
+    result = 1  # z^0
+    while e:
+        if e & 1:
+            result = _ring_mul(result, a, m)
+        a = _ring_mul(a, a, m)
+        e >>= 1
+    return result
+
+
+@functools.lru_cache(maxsize=None)
+def _mersenne_primes(order: int) -> Tuple[int, ...]:
+    """The primes of 2^order - 1, from its cyclotomic parts Phi_d(2), d | order."""
+    import sympy
+
+    found = set()
+    for d in sympy.divisors(order):
+        found |= set(sympy.factorint(int(sympy.cyclotomic_poly(d, 2))))
+    return tuple(sorted(found))
+
+
+@functools.lru_cache(maxsize=None)
+def rule_period(rule: int, m: int) -> int:
+    """The longest period of the one-dimensional linear rule (60, 90 or 150) on a ring of m
+    cells: 1 when every start dies or is fixed."""
+    if m < 1:
+        raise ValueError("a ring has at least one cell")
+    poly = _ring_poly(rule, m)
+    odd = _odd_part(m)
+    transient = m // odd
+    late = _ring_pow(poly, transient, m)
+    if late == 0:
+        return 1
+    order = _order_of_two(odd)
+    bound = transient * (2 ** order - 1)
+
+    def repeats(p: int) -> bool:
+        return _ring_mul(late, _ring_pow(poly, p, m), m) == late
+
+    if not repeats(bound):
+        raise ArithmeticError(f"rule {rule} on {m} cells: the period does not divide {bound}")
+    period = bound
+    for q in sorted({2, *(_mersenne_primes(order) if order > 1 else ())}):
+        while period % q == 0 and repeats(period // q):
+            period //= q
+    return period
+
+
 _FEATURES: Dict[str, Callable[[int], int]] = {
     "n": lambda n: n,
     "odd(n)": _odd_part,
@@ -300,6 +383,12 @@ _FEATURES: Dict[str, Callable[[int], int]] = {
     "sord(n)": lambda n: _suborder_of_two(_odd_part(n)),
     "(2^ord(n) - 1)": lambda n: 2 ** _order_of_two(_odd_part(n)) - 1,
     "(2^sord(n) - 1)": lambda n: 2 ** _suborder_of_two(_odd_part(n)) - 1,
+    "P60(n)": lambda n: rule_period(60, n),
+    "P90(n)": lambda n: rule_period(90, n),
+    "P150(n)": lambda n: rule_period(150, n),
+    "P60(odd(n))": lambda n: rule_period(60, _odd_part(n)),
+    "P90(odd(n))": lambda n: rule_period(90, _odd_part(n)),
+    "P150(odd(n))": lambda n: rule_period(150, _odd_part(n)),
 }
 
 
