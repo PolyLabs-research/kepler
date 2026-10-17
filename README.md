@@ -1,13 +1,17 @@
-# Galileo Trainer (Minimal)
+# Kepler
 
-Lightweight symbolic equation discovery using transformer models. Trains specialist models to predict mathematical formulas from numerical data.
+Kepler finds closed-form laws in numerical data. It has two halves:
+
+- **The `kepler` library** (`src/kepler`) is the classical half. It fits a law's constants
+  with error bars, ranks rival laws, predicts with a confidence band, and says before an
+  experiment whether the design can decide between them. It also finds exact laws in integer
+  data, conserved quantities, and known numbers among fitted constants. It needs numpy, scipy
+  and sympy only.
+- **Galileo Trainer** (`galileo_minimal/`) trains transformer models that propose formulas from
+  data, and an MCP server through which a language model can propose an equation and have
+  `kepler` fit it.
 
 ## The `kepler` library
-
-The classical half of Kepler (expression parsing, normalisation, least-squares refinement and
-the BIC ranking rule) is an installable package in `src/kepler`, with a public fit, rank and
-predict API. It needs numpy, scipy and sympy only; the transformers and the MCP server are
-optional extras.
 
 ```bash
 pip install -e .              # the library
@@ -15,6 +19,8 @@ pip install -e ".[models]"    # + torch, for galileo_minimal/train.py and friend
 pip install -e ".[mcp]"       # + mcp, for galileo_minimal/mcp_server.py
 pytest                        # the library's tests (tests/); galileo_minimal has its own
 ```
+
+### Fit, rank, predict
 
 ```python
 from kepler import fit, rank, predict, LAWS
@@ -29,8 +35,8 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
 
 - `fit(skeleton, x, y, sigma=None, space="linear")` takes a law name from `kepler.LAWS`
   (constant, logarithmic, linear, power, exponential, exponential_area, logistic,
-  shifted_power, and the probability laws below), a `Law`, or an equation whose Float literals are the constants
-  (`"20.0*x**0.5"`). A zero literal is refused: SymPy drops `0.0 + x` to `x`.
+  shifted_power, and the probability laws below), a `Law`, or an equation whose Float literals
+  are the constants (`"20.0*x**0.5"`). A zero literal is refused: SymPy drops `0.0 + x` to `x`.
 - `rank(fits, n, occam_window=6.0, min_r2=0.5)` is the rule `GalileoTools.discover_best` uses,
   now shared code. It refuses to compare fits of different data, weights or spaces.
 - `predict(fit, x, level=0.95)` returns the curve and its confidence band. A held-out
@@ -39,6 +45,9 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   test of held-out points.
 - The MCP server gains `fit_skeleton`: a language model proposes an equation and gets its
   constants fitted. `verify_equation` never refits.
+
+### Comparing laws, and designing the experiment
+
 - Model comparison is likelihood-based: with absolute sigmas a fit's BIC is chi-square +
   k ln n (known errors), otherwise n ln(RSS/n) + k ln n; `Fit.aicc` is the small-sample AIC.
   With `inflate`, `rank` divides every chi-square by one shared overdispersion factor (the
@@ -47,7 +56,10 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
 - `separation(truth, rival, x, relative=0.1, space="log", truth_params={...})` says before a
   run whether a design can tell two laws apart: the expected BIC difference, the factor by
   which the seeds must grow to reach a margin, and (with `simulations=N`) the chance of a
-  decisive right or wrong verdict.
+  decisive right or wrong verdict. `separation(..., likelihood="binomial", trials=20)` sizes a
+  count design the same way.
+
+### Counts, and times that are only bounds
 
 - Counts are fitted by maximum likelihood, not least squares on fractions:
   `fit("logistic_p", rho, survived, likelihood="binomial", trials=seeds)`. Its -2 ln L is
@@ -55,23 +67,26 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   `likelihood="poisson"` takes counts over an `exposure`. `PROBABILITY_LAWS` are a constant,
   a step (`logistic_p`) and a rise then fall (`window`: too sparse to start, too dense to last).
   Perfectly separated outcomes (every row all-or-nothing) are flagged, not trusted.
-- Laws of several variables take `x` as a dict: `fit("fss_logistic", {"rho": rho, "L": L},
-  survived, likelihood="binomial", trials=seeds)` fits one surface over density and size,
-  rho*(L) = r + a L^-b with a step that sharpens as L^s, so r is the threshold at infinite
-  size with an error bar. `FSS_LAWS` rank it against a fixed threshold (`sharpening`) and
-  against no transition at all (`crossover`, the same curve at every size).
-- `separation(..., likelihood="binomial", trials=20)` sizes a count design the same way.
 - Times that are sometimes only bounds (a run that hit its cap before the event) take
   `likelihood="censored"`: one row per run, `censored` marking the bounds, each time
   log-normal about the law with a fitted spread (`Fit.nuisance["log_spread"]`). Dropping the
   bounds, or reading them as times, biases a growth law low; this uses both.
 
+### Several variables, and several groups
+
+- Laws of several variables take `x` as a dict: `fit("fss_logistic", {"rho": rho, "L": L},
+  survived, likelihood="binomial", trials=seeds)` fits one surface over density and size,
+  rho*(L) = r + a L^-b with a step that sharpens as L^s, so r is the threshold at infinite
+  size with an error bar. `FSS_LAWS` rank it against a fixed threshold (`sharpening`) and
+  against no transition at all (`crossover`, the same curve at every size).
 - One law across groups: `fit_groups("power", L, T, lattice, shared=("b",), sigma=err)` fits
   one exponent for every lattice and an amplitude per lattice (`a[hexagon]`), in one
   likelihood, so the shared constant's error bar uses all the data. `compare_sharing` fits every
   pattern (nothing shared, each subset, everything) and says which the data support, by BIC
   with an Occam window and by a likelihood-ratio p-value against sharing nothing: "is the
   exponent universal across lattices?" `GroupFit.fit_for("hexagon")` predicts like any fit.
+
+### Laws over time, and distributions
 
 - Laws over time (`TIME_LAWS`): `relaxation` c + a e^(-x/tau), `stretched_exponential`, and
   `algebraic_relaxation` c + a (1 + x/tau)^-b. For curves measured once per seed,
@@ -86,269 +101,72 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   a truncated one; `goodness_of_fit` is the bootstrap p-value that can rule a family out
   (Clauset, Shalizi and Newman 2009).
 
+### Exact laws, conserved quantities and known constants
+
+- Exact laws for integer data (periods, counts): `find_integer_laws(n, y)` tries polynomials,
+  laws per residue class, gcd/lcm forms, exponentials, linear recurrences, periodic sequences,
+  and products of number-theoretic features, in exact arithmetic. The features include the odd
+  part of n, its 2-adic part 2^v(n), and the multiplicative order and suborder of 2 modulo the
+  odd part (ord and sord, the least j with 2^j = +-1), with 2^ord - 1 and 2^sord - 1: the
+  quantities periods of linear (XOR) automata are built from. Each law says how many points
+  determined it and how many more confirmed it; laws that agree on the data but part beyond it
+  are reported as rivals, and `integer_laws.disagreement` names the next n that would decide.
+- Conserved quantities: `find_invariants(runs, modulus=2)` finds the integer combinations of
+  counts that never change in any run (exact null space, reduced by LLL to short vectors), and
+  those conserved only mod a prime. `Invariants.beyond(known)` counts what the known
+  bookkeeping identities do not explain.
 - Is a constant a known number? `identify(0.3341, 0.0053)` lists closed forms (p/q, p/q times
   pi, e, sqrt 2, ..., square roots) and named constants (`KNOWN`: 2D percolation and Ising
   exponents, directed percolation, KPZ, coarsening, percolation thresholds) within the error
   bar, simplest first, each with `p_chance`, the chance that a match that simple and that close
   would turn up anyway at that error bar. `identify_fit(fit)` does every constant of a fit.
-- Exact laws for integer data (periods, counts): `find_integer_laws(n, y)` tries polynomials,
-  laws per residue class, gcd/lcm forms, exponentials, linear recurrences, periodic sequences,
-  and products of number-theoretic features (the odd part of n, the multiplicative order of 2),
-  in exact arithmetic. Each law says how many points determined it and how many more confirmed
-  it; laws that agree on the data but part beyond it are reported as rivals, and
-  `integer_laws.disagreement` names the next n that would decide.
-- Conserved quantities: `find_invariants(runs, modulus=2)` finds the integer combinations of
-  counts that never change in any run (exact null space, reduced by LLL to short vectors), and
-  those conserved only mod a prime. `Invariants.beyond(known)` counts what the known
-  bookkeeping identities do not explain.
 
 `galileo_minimal/expression.py`, `normalize.py` and `refine.py` are now shims that hand back
 the package modules, so the scripts and tests there run unchanged from inside that folder.
 
-## Quick Start
+## What it has found
+
+[lattice-lab](https://github.com/tripptytrip/lattice-lab) uses the library as the fitting half
+of a law-discovery loop over [LatticeLife](https://github.com/PolyLabs-research/gameoflife_advanced)
+cellular automata. Each law's predictions are registered before the runs that test them. In that
+loop:
+
+- **Exact period laws** from `find_integer_laws`. For the square XOR rule B1357/S1357 it found
+  P(n) = 2^v(n) (2^sord(n) - 1), and for the parity rules on the hexagonal and triangular
+  lattices 2 * 2^v(n) (2^sord(n) - 1). Each was determined by one size and confirmed by the
+  rest. Registered tests confirmed the square law at every n up to 200. They confirmed the
+  triangles' law at 154 sizes and refuted the hexagon's at 3 of 70.
+- **A conserved quantity** from `find_invariants`: under the XOR rule, cumulative births are
+  always even. Found in the data, it then had a short proof.
+- **A settling-time law** chosen by `rank` with a held-out test: on the hexagonal lattice, B2/S34
+  soups settle in time that grows with the logarithm of the torus size, not with a power of it
+  (one answer, to replicate with more seeds or larger tori).
+- **A gap.** For odd parts of at least 5, the hexagon's correct period is 2 * 2^v(n) times rule
+  90's period on the odd part: two hexagon generations are three passes of the 1D rule 90. `find_integer_laws` has no feature
+  for another automaton's period, so it could not have proposed that law. The refutation and
+  the proof came from lattice-lab's registered test and reasoning added afterwards.
+
+The write-ups, with what was known before and what was not, are lattice-lab's
+[docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md)
+and [docs/parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md).
+
+## Galileo Trainer
+
+`galileo_minimal/` trains specialist transformers (polynomial, autoregressive, transcendental
+and multivariate physics laws) that predict a formula from data, with clean-up of the predicted
+coefficients, an evaluation script and an MCP server. Run it from that folder:
 
 ```bash
-# 1. Setup (creates venv, installs PyTorch+CUDA)
-chmod +x setup.sh && ./setup.sh
+cd galileo_minimal
+chmod +x setup.sh
+./setup.sh --dev        # auto-detects CUDA (or use --cpu / --cuda)
 source .venv/bin/activate
-
-# 2. Train a model
 python train.py --model polynomial
-
-# 3. Test it
 python test.py --model polynomial
 ```
 
----
-
-## Requirements
-
-- Python 3.10+
-- NVIDIA GPU with CUDA (or CPU, but slower)
-- ~4GB+ VRAM recommended (batch size auto-scales)
-
-**Dependencies** (installed by setup.sh):
-- torch (with CUDA 12.1)
-- numpy, scipy, sympy, pyyaml
-
----
-
-## Training
-
-### Basic Usage
-
-```bash
-python train.py --model <model_type>
-```
-
-### Available Models
-
-| Model | Description | Feature Dim |
-|-------|-------------|-------------|
-| `polynomial` | y = Σaᵢxⁱ (linear, quadratic, cubic, etc.) | 48 |
-| `ar` | Autoregressive timeseries y[t] = Σφᵢy[t-i] | 32 |
-| `transcendental` | Exponential, power law, logarithmic, logistic | 48 |
-| `physics_laws` | Multivariate physics (F = GMm/r², etc.) | 64 |
-
-### Options
-
-```bash
-python train.py --model polynomial              # Basic training
-python train.py --model polynomial --steps 10000  # Custom step count
-python train.py --model polynomial --resume       # Resume from checkpoint
-python train.py --model polynomial --batch-size 256  # Override batch size
-```
-
-### What Happens During Training
-
-1. **Online data generation** - samples generated on-the-fly (no pre-compilation)
-2. **Checkpoints saved** to `checkpoints/<domain>/<model>/`
-   - `model_best.pt` - best loss so far
-   - `model_final.pt` - end of training
-   - `model_interrupted.pt` - if you Ctrl+C
-3. **Logging** every 100 steps showing loss and learning rate
-
-### Typical Output
-
-```
-Device: cuda
-Batch size: 512
-Model parameters: 4,234,567
-[100/50000] loss=2.3421 avg=2.5123 lr=3.00e-05
-[200/50000] loss=1.8934 avg=2.1245 lr=6.00e-05
-Saved BEST checkpoint (loss=2.1245)
-...
-```
-
-### Training Tips
-
-- **Start with polynomial** - simplest, validates your setup
-- **5000-10000 steps** is usually enough to see if it's learning
-- **Watch the loss** - should drop below 1.0 for polynomial within a few thousand steps
-- **Ctrl+C is safe** - saves an interrupt checkpoint you can resume from
-
----
-
-## Testing
-
-### Basic Usage
-
-```bash
-python test.py --model polynomial
-```
-
-### Options
-
-```bash
-python test.py --model polynomial              # With cleanup (default)
-python test.py --model polynomial --no-cleanup # Raw model output
-```
-
-### What Cleanup Does
-
-The model outputs approximate coefficients. Post-processing cleans them up:
-
-| Raw Output | After Cleanup |
-|------------|---------------|
-| `0.98 * X + 0.03` | `X` |
-| `2.03 * X + 0.97` | `2 * X + 1` |
-| `0.51 * X ** 2` | `1/2 * X ** 2` |
-
-Cleanup includes:
-- **Pruning** tiny terms (|coef| < 0.1)
-- **Snapping** to integers (0.98 → 1)
-- **Snapping** to common fractions (0.51 → 1/2, 0.67 → 2/3)
-
-### Typical Output
-
-```
-Loaded: checkpoints/algebraic/polynomial/model_best.pt
-
-Running 3 tests for polynomial...
-======================================================================
-[PASS] linear_simple
-  Truth:     X
-  Predicted: X
-----------------------------------------------------------------------
-[PASS] quadratic_vertex
-  Truth:     X ** 2
-  Predicted: X ** 2
-----------------------------------------------------------------------
-
-Summary: 2/3 passed
-```
-
----
-
-## File Structure
-
-```
-galileo_minimal/
-├── setup.sh          # Environment setup
-├── config.py         # Hardware detection, model configs
-├── vocab.py          # Token vocabulary
-├── model.py          # SymbolicTransformer architecture
-├── generators.py     # Data generators + feature extraction
-├── train.py          # Training script
-├── test.py           # Evaluation script
-└── checkpoints/      # Created during training
-    ├── algebraic/
-    │   └── polynomial/
-    │       └── model_best.pt
-    └── timeseries/
-        └── ar/
-            └── model_best.pt
-```
-
----
-
-## Hardware Notes
-
-### VRAM Auto-Scaling
-
-The trainer automatically adjusts batch size based on available VRAM:
-
-| VRAM | Batch Size |
-|------|------------|
-| 16GB+ | 512 |
-| 8GB | 256 |
-| 4GB | 128 |
-| CPU | 128 |
-
-Override with `--batch-size` if needed.
-
-### CPU Training
-
-Works but slow. Useful for debugging:
-
-```bash
-CUDA_VISIBLE_DEVICES="" python train.py --model polynomial --steps 100
-```
-
----
-
-## Migrating Checkpoints
-
-Checkpoints from the full Galileo Trainer are compatible. Just copy:
-
-```bash
-cp -r /old/system/checkpoints ./checkpoints
-```
-
-Then test:
-
-```bash
-python test.py --model polynomial
-```
-
----
-
-## Troubleshooting
-
-### "CUDA out of memory"
-
-Reduce batch size:
-```bash
-python train.py --model polynomial --batch-size 128
-```
-
-### "No checkpoint found"
-
-Train first:
-```bash
-python train.py --model polynomial --steps 5000
-```
-
-### Loss not decreasing
-
-- Check your GPU is being used (`nvidia-smi`)
-- Try a simpler model first (polynomial)
-- Ensure batch size isn't too small (<64 can be unstable)
-
-### Test results all FAIL but predictions look close
-
-This is usually a comparison issue. Check:
-- Are coefficients approximately correct? (cleanup helps)
-- Is the structure right even if coefficients differ?
-
----
-
-## Extending
-
-### Adding a New Generator
-
-1. Add class to `generators.py` following the `BaseGenerator` pattern
-2. Add config to `CONFIGS` in `config.py`
-3. Add domain mapping to `DOMAINS` in `config.py`
-4. Add test cases to `TEST_CASES` in `test.py`
-
-### Adding New Tokens
-
-Edit `vocab.py` → `Vocabulary.default()` to add tokens.
-
-**Note**: Changing vocabulary invalidates existing checkpoints.
-
----
+[galileo_minimal/README.md](galileo_minimal/README.md) covers the models, training and testing
+options, hardware notes, troubleshooting, Windows setup and how to add a generator.
 
 ## License
 
