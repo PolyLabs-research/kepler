@@ -144,7 +144,8 @@ loop:
   A registered replication on tori up to 1024 confirmed it and rejected the power law. So did a
   registered test of eight random rules on four lattice types. Across those eight, the
   fluctuations share one shape and one ratio of spread to growth, both consistent with the
-  Gumbel law for the largest of many light-tailed times. The Gumbel constants were added to
+  Gumbel law for the largest of many light-tailed times. With more soups, B2/S34's ratio is the
+  same; an apparent exception in the first replication was a low draw. The Gumbel constants were added to
   `KNOWN` for that test; at its error bars, `identify` finds them among hundreds of equally
   good matches, so it cannot yet name the class unaided.
 - **A gap.** For odd parts of at least 5, the hexagon's correct period is 2 * 2^v(n) times rule
