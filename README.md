@@ -108,7 +108,9 @@ T_hat, low, high = predict(best, [48, 64, 128])   # 95% band from the covariance
   and products of number-theoretic features, in exact arithmetic. The features include the odd
   part of n, its 2-adic part 2^v(n), and the multiplicative order and suborder of 2 modulo the
   odd part (ord and sord, the least j with 2^j = +-1), with 2^ord - 1 and 2^sord - 1: the
-  quantities periods of linear (XOR) automata are built from. Each law says how many points
+  quantities periods of linear (XOR) automata are built from. It also includes the periods of
+  the 1D linear rules 60, 90 and 150 on n and on odd(n) cells, computed exactly, so that a law
+  can tie a lattice rule to a 1D one. Each law says how many points
   determined it and how many more confirmed it; laws that agree on the data but part beyond it
   are reported as rivals, and `integer_laws.disagreement` names the next n that would decide.
 - Conserved quantities: `find_invariants(runs, modulus=2)` finds the integer combinations of
@@ -148,10 +150,16 @@ loop:
   same; an apparent exception in the first replication was a low draw. The Gumbel constants were added to
   `KNOWN` for that test; at its error bars, `identify` finds them among hundreds of equally
   good matches, so it cannot yet name the class unaided.
-- **A gap.** For odd parts of at least 5, the hexagon's correct period is 2 * 2^v(n) times rule
-  90's period on the odd part: two hexagon generations are three passes of the 1D rule 90. `find_integer_laws` has no feature
-  for another automaton's period, so it could not have proposed that law. The refutation and
-  the proof came from lattice-lab's registered test and reasoning added afterwards.
+- **A gap, then closed.** For odd parts of at least 5, the hexagon's correct period is 2 * 2^v(n)
+  times rule 90's period on the odd part: two hexagon generations are three passes of the 1D
+  rule 90. `find_integer_laws` had no feature for another automaton's period, so it could not
+  have proposed that law; the refutation and the proof came from lattice-lab's registered test
+  and reasoning added afterwards. The search now includes the periods of the 1D linear rules
+  (60, 90, 150, on n and on odd(n) cells). In a registered replay it lists the corrected law,
+  `2*P90(n)`, beside the formula on the discovery data, names n = 74 as the size that decides,
+  and on the data up to 200 keeps the right law on every lattice. That shows capability, in
+  hindsight; simplicity alone would have picked the rule-90 law on every lattice, wrongly for
+  three of them.
 
 The write-ups, with what was known before and what was not, are lattice-lab's
 [docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md),
