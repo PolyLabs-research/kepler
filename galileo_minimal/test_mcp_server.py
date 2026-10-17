@@ -15,6 +15,7 @@ from mcp_server import (
     TOOL_FUNCTIONS,
     classify_data,
     discover_equation,
+    fit_skeleton,
     jsonable,
     list_models,
     synthesize_data,
@@ -27,7 +28,7 @@ try:
 except ImportError:
     HAVE_MCP = False
 
-EXPECTED_TOOLS = {"discover_equation", "verify_equation", "synthesize_data", "classify_data", "list_models"}
+EXPECTED_TOOLS = {"discover_equation", "verify_equation", "fit_skeleton", "synthesize_data", "classify_data", "list_models"}
 
 
 def test_jsonable_cleans_numpy_and_non_finite():
@@ -124,6 +125,25 @@ def test_cli_lists_tools(capsys):
     assert mcp_server.main(["--list-tools"]) == 0
     listed = json.loads(capsys.readouterr().out)
     assert {t["name"] for t in listed} == EXPECTED_TOOLS
+
+
+def test_fit_skeleton_fits_constants_with_error_bars():
+    x = np.array([6, 8, 10, 12, 16, 20, 24, 32, 40], dtype=float)
+    y = 27.0 * x ** 0.35
+    out = fit_skeleton("20.0*x**0.5", y=y.tolist(), x=x.tolist())
+    json.dumps(out)
+    assert out["success"] and out["r2"] == pytest.approx(1.0)
+    assert sorted(out["params"].values()) == pytest.approx([0.35, 27.0], rel=1e-6)
+    assert set(out["stderr"]) == set(out["params"])
+
+    by_name = fit_skeleton("power", y=y.tolist(), x=x.tolist(), space="log")
+    assert by_name["params"] == pytest.approx({"a": 27.0, "b": 0.35}, rel=1e-6)
+
+
+def test_fit_skeleton_reports_bad_input_as_error():
+    assert "zero constant" in fit_skeleton("0.0 + 2.0*x", y=[1.0, 2.0, 3.0])["error"]
+    assert "error" in fit_skeleton("a*x", y=[1.0, 2.0, 3.0])
+    assert "error" in fit_skeleton("power", y=[1.0, 2.0], x=[1.0])
 
 
 def test_tool_function_list_matches_expected_names():

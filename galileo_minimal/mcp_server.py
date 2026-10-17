@@ -8,7 +8,8 @@ synthesise, discover, verify loop as tools:
     list_models        which specialists and tiers have trained checkpoints
     classify_data      Overseer's model rankings for a dataset, no inference
     discover_equation  data -> equation in original units, ranked and refined
-    verify_equation    equation + data -> RMSE, R^2 and a match verdict
+    verify_equation    equation + data -> RMSE, R^2 and a match verdict (never refits)
+    fit_skeleton       your equation's constants fitted to data, with error bars
     synthesize_data    equation, description, ODE or physics law -> data
 
 Run (stdio, the transport Claude Code and Claude Desktop use):
@@ -44,6 +45,8 @@ if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
 from galileo_tools import GalileoTools  # noqa: E402
+from kepler.fitting import fit as _fit_law  # noqa: E402  (importable once galileo_tools has loaded)
+from kepler.laws import LAWS  # noqa: E402
 
 try:
     from pydantic import Field
@@ -59,7 +62,11 @@ Typical loop: call discover_equation with your x and y (in their natural units;
 the data is normalised internally and the equation comes back in your units),
 read `equation`, `fit.r2` and `ranking_note`, then call verify_equation with the
 same data to confirm, or synthesize_data to generate data from a hypothesis and
-compare. Call list_models first if you need to know which specialists are
+compare. verify_equation never refits: it scores the equation exactly as written.
+To test your own idea of the shape, call fit_skeleton with an equation whose
+constants are numbers ('2.0*x**0.5 + 1.0') or a named law ('power'); it fits the
+constants and returns them with standard errors and BIC, so several proposals
+for the same data can be compared. Call list_models first if you need to know which specialists are
 trained. When x is omitted the sample index 0..n-1 is used.
 
 Families covered: polynomials, exponentials, power laws, logarithms, logistic
@@ -184,6 +191,27 @@ def synthesize_data(
     return jsonable(get_tools().synthesize_data(**kwargs))
 
 
+def fit_skeleton(
+    equation: Annotated[str, Field(description="Equation in x whose numeric constants are fitted, e.g. '2.0*x**0.5 + 1.0' (integers such as the 2 in x**2 stay fixed; start no constant at 0.0), or a law name: " + ", ".join(LAWS) + ".")],
+    y: Y,
+    x: X = None,
+    sigma: Annotated[Optional[List[float]], Field(description="Uncertainty of each y, same length; points with smaller sigma count for more. Omit for equal weights.")] = None,
+    space: Annotated[str, Field(description="'linear', or 'log' to fit log(f(x)) to log(y) for data spanning decades (every y > 0).")] = "linear",
+) -> Dict[str, Any]:
+    """Fit the constants of a proposed equation (or a named law) to data.
+
+    Keeps the structure you give and fits every numeric constant by (weighted)
+    least squares. Returns the fitted equation, each constant with its standard
+    error, RMSE, R^2, BIC (lower is better; compare proposals on the same data,
+    sigma and space) and an ill_conditioned flag. Errors come back as {"error": ...}.
+    """
+    try:
+        x_values = list(range(len(y))) if x is None else x
+        return jsonable(_fit_law(equation, x_values, y, sigma=sigma, space=space).to_dict())
+    except (ValueError, TypeError) as exc:
+        return {"error": str(exc)}
+
+
 def classify_data(y: Y, x: X = None) -> Dict[str, Any]:
     """Rank which specialist families suit the data, without running a model.
 
@@ -202,7 +230,7 @@ def list_models() -> Dict[str, Any]:
     return jsonable(get_tools().get_status())
 
 
-TOOL_FUNCTIONS = [discover_equation, verify_equation, synthesize_data, classify_data, list_models]
+TOOL_FUNCTIONS = [discover_equation, verify_equation, fit_skeleton, synthesize_data, classify_data, list_models]
 
 
 # =============================================================================
