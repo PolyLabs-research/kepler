@@ -169,7 +169,8 @@ loop:
   - its laws include `P150(n)` for two square rules and `2*P150(n)` for a hexagonal one.
 
   Ranking still prefers the shorter rule-90 law. Listing the rivals is what made the test
-  decisive.
+  decisive. A second registered round confirmed all 34 laws at 624 sizes up to n = 400, chosen
+  where the rivals part.
 
 The write-ups, with what was known before and what was not, are lattice-lab's
 [docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md),
