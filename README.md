@@ -11,6 +11,16 @@ Kepler finds closed-form laws in numerical data. It has two halves:
   data, and an MCP server through which a language model can propose an equation and have
   `kepler` fit it.
 
+**Findings so far.** Used by [lattice-lab](https://github.com/tripptytrip/lattice-lab) on
+LatticeLife's cellular automata, the library has found several things. Each was tested by
+predictions registered before the runs:
+- exact period laws for parity rules on three lattices, several of them since proved;
+- period laws for 42 linear rules, 38 never studied, confirmed blind at thousands of new sizes;
+- a logarithmic settling-time law with universal fluctuations;
+- a conserved parity.
+
+See [What it has found](#what-it-has-found).
+
 ## The `kepler` library
 
 ```bash
@@ -131,8 +141,22 @@ the package modules, so the scripts and tests there run unchanged from inside th
 
 [lattice-lab](https://github.com/tripptytrip/lattice-lab) uses the library as the fitting half
 of a law-discovery loop over [LatticeLife](https://github.com/PolyLabs-research/gameoflife_advanced)
-cellular automata. Each law's predictions are registered before the runs that test them. In that
-loop:
+cellular automata. Each law's predictions are registered before the runs that test them. Each
+finding below gives the tool that made it and how the law fared. Where reasoning after the fact
+went beyond the tools, it says so.
+
+| Finding | Tool | Status | Write-up |
+| --- | --- | --- | --- |
+| Square parity rule B1357/S1357: P(n) = 2^v(n) (2^sord(n) - 1) | `find_integer_laws` | confirmed in advance at every n up to 200; proved for odd parts up to 999 except ten | [xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md) |
+| Hexagon parity rule B135/S135 | `find_integer_laws` | its first law was refuted at 3 of 70 sizes; the corrected law, 2 P90(n), was found by reasoning, then **proved for every even n**; with rule periods added to its vocabulary, Kepler now finds it itself | [parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md) |
+| Triangle parity rules | `find_integer_laws` | confirmed at 154 sizes; the factor 2 * 2^v(n) is proved; the odd part is checked by machine for odd parts up to 999 except ten | [parity-lattices.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/parity-lattices.md) |
+| 42 linear rules built from neighbour shells, 38 never studied | `find_integer_laws` | blind: all 34 rules that got a law kept a registered one at 1,930 new pairs, and again at 624 harder pairs up to n = 400 | [linear-atlas.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/linear-atlas.md) |
+| Which of those laws a rule gets, from its polynomial alone | reasoning after the fact | registered and **refuted** on 116 new rules (7 of 113 predictions failed); the failures showed two more mechanisms, then predicted exactly; a refined version is **registered and running** on 344 more rules | [linear-atlas.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/linear-atlas.md) |
+| B2/S34 settling time on the hexagon grows like log L | `rank`, held-out test | replicated on tori up to 1024; a log law across eight random rules on four lattice types | [settling-time.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/settling-time.md) |
+| Fluctuations of settling time match Gumbel's law | `compare_sharing`; `identify` | one shape and one ratio of spread to growth, shared across lattice types and matching Gumbel's values; `identify` cannot yet name the class unaided | [settling-time.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/settling-time.md) |
+| Cumulative births under B1357/S1357 are always even | `find_invariants` | found in the data, then proved | [capabilities.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/capabilities.md) |
+
+In more detail:
 
 - **Exact period laws** from `find_integer_laws`. For the square XOR rule B1357/S1357 it found
   P(n) = 2^v(n) (2^sord(n) - 1), and for the parity rules on the hexagonal and triangular
@@ -171,6 +195,13 @@ loop:
   Ranking still prefers the shorter rule-90 law. Listing the rivals is what made the test
   decisive. A second registered round confirmed all 34 laws at 624 sizes up to n = 400, chosen
   where the rivals part.
+
+  Which family a rule's law falls in comes from reasoning, not from Kepler. A rule whose
+  polynomial factors into 1D passes gets a 1D rule's period; the others mostly reach the full
+  bound. This was registered on 116 rules nobody had computed, and 7 of its 113 predictions
+  failed: perfect cubes, a rule on every third cell, and four single-size accidents. A refined
+  version is registered and running on 344 more rules across the three lattices, with 11,358
+  predictions. It covers cubes and dilations, and keeps the small sizes in.
 
 The write-ups, with what was known before and what was not, are lattice-lab's
 [docs/xor-periods.md](https://github.com/tripptytrip/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/xor-periods.md),
