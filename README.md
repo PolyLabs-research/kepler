@@ -156,6 +156,9 @@ went beyond the tools, it says so.
 | Fluctuations of settling time match Gumbel's law | `compare_sharing`; `identify` | one shape and one ratio of spread to growth, shared across lattice types and matching Gumbel's values; `identify` cannot yet name the class unaided | [settling-time.md](https://github.com/PolyLabs-research/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/settling-time.md) |
 | Cumulative births under B1357/S1357 are always even | `find_invariants` | found in the data, then proved | [capabilities.md](https://github.com/PolyLabs-research/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/capabilities.md) |
 
+Where things stand, and what is open, is in lattice-lab's
+[docs/STATUS.md](https://github.com/PolyLabs-research/lattice-lab/blob/ccr-ab9f0bb1-qb20sx/docs/STATUS.md).
+
 In more detail:
 
 - **Exact period laws** from `find_integer_laws`. For the square XOR rule B1357/S1357 it found
